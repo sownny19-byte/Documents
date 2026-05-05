@@ -11,7 +11,7 @@
   <!-- 載入 Babel (用於在瀏覽器端即時編譯 React JSX 語法) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   
-  <!-- 設定 ES Modules 的 Import Map (指向現代的 ESM CDN) -->
+  <!-- 設定 ES Modules 的 Import Map -->
   <script type="importmap">
     {
       "imports": {
@@ -170,7 +170,6 @@
       const [editingPersonId, setEditingPersonId] = useState(null);
 
       useEffect(() => {
-        // 推進版本到 _v6 以強制更新快取
         const savedPeople = localStorage.getItem('doc_dash_people_v6');
         const savedRecords = localStorage.getItem('doc_dash_records_v6');
         const savedLeaders = localStorage.getItem('doc_dash_leaders_v6');
