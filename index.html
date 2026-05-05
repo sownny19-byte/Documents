@@ -141,7 +141,7 @@
       const [groupLeaders, setGroupLeaders] = useState({});
       const [filterYear, setFilterYear] = useState('All');
       const [groupBy, setGroupBy] = useState('person');
-      const [leaderboardView, setLeaderboardView] = useState('year'); // 新增：控制排行榜顯示維度
+      const [leaderboardView, setLeaderboardView] = useState('year'); 
       const [editingPersonId, setEditingPersonId] = useState(null);
       const [sysMsg, setSysMsg] = useState("");
       const [user, setUser] = useState(null);
@@ -178,7 +178,6 @@
         const bootSystem = async () => {
           updateSyncStatus("CONNECTING_CLOUD...", "text-yellow-400");
           
-          // 嘗試匿名登入
           try {
              await signInAnonymously(auth);
              setAuthError(false);
@@ -216,7 +215,7 @@
              }
           }
 
-          // 本地資料或初始化資料 (升級至 v9 確保清除舊版的快取)
+          // 本地資料或初始化資料 
           if (!hasCloudData) {
              const savedPeople = localStorage.getItem('doc_dash_people_v9');
              const savedRecords = localStorage.getItem('doc_dash_records_v9');
@@ -228,7 +227,6 @@
              } else {
                setPeople(initialPeople);
                
-               // 新版：只產生 113, 114 兩年的模擬數據
                const initialData = [];
                const years = ['113', '114'];
                let idCounter = 1;
@@ -254,7 +252,7 @@
         return () => unsubscribe();
       }, []);
 
-      // 自動背景存檔與雲端上傳 (Auto-Save)
+      // 自動背景存檔與雲端上傳
       useEffect(() => {
         if (!isInitialLoadDone) return;
 
@@ -381,7 +379,6 @@
         }
       };
 
-      // 資料運算與排行榜邏輯
       const dashboardData = useMemo(() => {
         let filtered = records;
         if (filterYear !== 'All') filtered = records.filter(r => r.year === filterYear);
@@ -394,13 +391,11 @@
         const monthlyMap = {};
 
         filtered.forEach(r => {
-          // 趨勢圖資料
           const label = filterYear === 'All' ? `${r.year}年${r.month}月` : `${r.month}月`;
           const sortKey = filterYear === 'All' ? `${r.year}-${r.month.padStart(2, '0')}` : r.month.padStart(2, '0');
           if (!trendMap[sortKey]) trendMap[sortKey] = { name: label, '總件數': 0 };
           trendMap[sortKey]['總件數'] += r.volume;
 
-          // 排行榜資料彙整
           if (!yearlyMap[r.year]) yearlyMap[r.year] = {};
           if (!yearlyMap[r.year][r.personId]) yearlyMap[r.year][r.personId] = 0;
           yearlyMap[r.year][r.personId] += r.volume;
@@ -435,7 +430,6 @@
         let maxMapVol = -1;
         ADMIN_DISTRICTS.forEach(d => { if(mapVolumes[d.id] > maxMapVol) { maxMapVol = mapVolumes[d.id]; maxMapId = d.id; }});
 
-        // 排行榜 Top 3 提取器
         const formatTop3 = (dataMap) => {
           return Object.entries(dataMap).map(([period, pVols]) => {
             const top3 = Object.entries(pVols)
@@ -488,7 +482,7 @@
                 </div>
                 <h1 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-br from-cyan-200 to-blue-500 leading-tight">Volume of Documents</h1>
               </div>
-              <p className="text-cyan-800 font-mono text-[9px] tracking-[0.3em] uppercase pl-1">Operational Matrix v13.1</p>
+              <p className="text-cyan-800 font-mono text-[9px] tracking-[0.3em] uppercase pl-1">Operational Matrix v13.2</p>
             </div>
             
             <nav className="px-5 space-y-2.5 flex-1">
@@ -568,10 +562,7 @@
                      </div>
                   </div>
 
-                  {/* 變更：網格佈局 (原本全寬的分佈矩陣 + 新增的排行榜) */}
                   <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                    
-                    {/* 左側：分佈矩陣 */}
                     <div className={`${glassPanelClass} flex flex-col h-[500px]`}>
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                         <h3 className="text-xs font-black text-purple-300 tracking-[0.2em] uppercase flex items-center gap-2">
@@ -618,7 +609,6 @@
                       </div>
                     </div>
 
-                    {/* 右側：戰績排行榜 */}
                     <div className={`${glassPanelClass} flex flex-col h-[500px]`}>
                       <div className="flex justify-between items-center mb-6">
                         <h3 className="text-xs font-black text-yellow-400 tracking-[0.2em] uppercase flex items-center gap-2">
@@ -786,6 +776,14 @@
         setNewPerson({ name: p.name, district: p.district || DISTRICT_OPTIONS[0], group: p.group, isActive: p.isActive !== false });
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
+      
+      const handleToggleStatus = (id) => {
+        setPeople(people.map(p => {
+          if (p.id === id) return { ...p, isActive: p.isActive === false ? true : false };
+          return p;
+        }));
+        showMsg("節點狀態已切換。");
+      };
 
       const currentList = people.filter(p => p.group === activeGroupTab).sort((a,b) => (a.isActive === b.isActive) ? 0 : a.isActive ? -1 : 1);
 
@@ -794,17 +792,24 @@
           <div className={glassPanelClass}>
             <h2 className="text-[10px] font-black text-cyan-300 tracking-[0.3em] uppercase mb-8">{editingNodeId ? 'Edit Network Node' : 'Initialize New Node'}</h2>
             <form onSubmit={handleUpsertPerson} className="grid grid-cols-1 md:grid-cols-5 gap-6 items-end relative z-10">
-              <div><label className={labelClass}>識別碼 (姓名)</label><input type="text" value={newPerson.name} onChange={e => setNewPerson({...newPerson, name: e.target.value})} className={inputClass} placeholder="ID_IDENTIFIER"/></div>
-              <div><label className={labelClass}>隸屬群集 (股別)</label><select value={newPerson.group} onChange={e => setNewPerson({...newPerson, group: e.target.value})} className={inputClass}>{GROUP_OPTIONS.map(g => <option key={g} value={g} className="bg-[#0f172a]">{g}</option>)}</select></div>
+              <div><label className={editingNodeId ? labelClass.replace('cyan', 'emerald') : labelClass}>識別碼 (姓名)</label><input type="text" value={newPerson.name} onChange={e => setNewPerson({...newPerson, name: e.target.value})} className={editingNodeId ? inputClass.replace(/cyan/g, 'emerald') : inputClass} placeholder="ID_IDENTIFIER"/></div>
+              <div><label className={editingNodeId ? labelClass.replace('cyan', 'emerald') : labelClass}>隸屬群集 (股別)</label><select value={newPerson.group} onChange={e => setNewPerson({...newPerson, group: e.target.value})} className={editingNodeId ? inputClass.replace(/cyan/g, 'emerald') : inputClass}>{GROUP_OPTIONS.map(g => <option key={g} value={g} className="bg-[#0f172a]">{g}</option>)}</select></div>
               <div>
-                <label className={labelClass}>負責扇區 (轄區)</label>
-                <select value={newPerson.district} onChange={e => setNewPerson({...newPerson, district: e.target.value})} className={inputClass}>
+                <label className={editingNodeId ? labelClass.replace('cyan', 'emerald') : labelClass}>負責扇區 (轄區)</label>
+                <select value={newPerson.district} onChange={e => setNewPerson({...newPerson, district: e.target.value})} className={editingNodeId ? inputClass.replace(/cyan/g, 'emerald') : inputClass}>
                   {DISTRICT_OPTIONS.map(d => <option key={d} value={d} className="bg-[#0f172a]">{d}</option>)}
                 </select>
               </div>
+              <div>
+                <label className={editingNodeId ? labelClass.replace('cyan', 'emerald') : labelClass}>節點狀態 (現/離職)</label>
+                <select value={newPerson.isActive} onChange={e => setNewPerson({...newPerson, isActive: e.target.value === 'true'})} className={editingNodeId ? inputClass.replace(/cyan/g, 'emerald') : inputClass}>
+                  <option value={true} className="bg-[#0f172a] text-cyan-400">現職 (ACTIVE)</option>
+                  <option value={false} className="bg-[#0f172a] text-slate-500">非現職 (OFFLINE)</option>
+                </select>
+              </div>
               <div className="flex gap-2">
-                <button type="submit" className={`${btnCyberClass} flex-1 uppercase`}>{editingNodeId ? 'Update' : 'Execute'}</button>
-                {editingNodeId && <button type="button" onClick={() => { setEditingNodeId(null); setNewPerson({ name: '', district: DISTRICT_OPTIONS[0], group: activeGroupTab, isActive: true }); }} className="bg-red-500/10 border border-red-500/50 p-2 rounded-lg text-red-500 transition-all"><X className="w-5 h-5"/></button>}
+                <button type="submit" className={`${editingNodeId ? btnCyberClass.replace('bg-cyan-500/10', 'bg-emerald-500/10').replace(/cyan/g, 'emerald') : btnCyberClass} flex-1 uppercase`}>{editingNodeId ? 'Update' : 'Execute'}</button>
+                {editingNodeId && <button type="button" onClick={() => { setEditingNodeId(null); setNewPerson({ name: '', district: DISTRICT_OPTIONS[0], group: activeGroupTab, isActive: true }); }} className="bg-red-500/10 border border-red-500/50 p-2.5 rounded-lg text-red-500 hover:bg-red-500 hover:text-white transition-all"><X className="w-5 h-5"/></button>}
               </div>
             </form>
           </div>
@@ -830,13 +835,14 @@
                      <td className="px-8 py-5 whitespace-nowrap text-[9px] font-black">{p.isActive ? 'ACTIVE' : 'OFFLINE'}</td>
                      <td className="px-8 py-5 whitespace-nowrap text-sm font-black text-cyan-50">{p.name} <span className="text-[10px] text-slate-500 ml-2 font-mono uppercase">[{p.district}]</span></td>
                      <td className="px-8 py-5 text-right flex justify-end gap-2.5">
-                       <button onClick={() => setEditingPersonId(p.id)} className="p-2.5 bg-purple-500/10 rounded-xl text-purple-400 hover:bg-purple-500/20"><FileSpreadsheet className="w-4 h-4"/></button>
-                       <button onClick={() => handleEditNode(p)} className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-400 hover:bg-emerald-500/20"><Edit2 className="w-4 h-4"/></button>
+                       <button onClick={() => setEditingPersonId(p.id)} title="管理數據" className="p-2.5 bg-purple-500/10 rounded-xl text-purple-400 hover:bg-purple-500 hover:text-white transition-all"><FileSpreadsheet className="w-4 h-4"/></button>
+                       <button onClick={() => handleEditNode(p)} title="編輯節點" className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all"><Edit2 className="w-4 h-4"/></button>
+                       <button onClick={() => handleToggleStatus(p.id)} title={p.isActive ? "設為非現職" : "設為現職"} className={`p-2.5 rounded-xl transition-all ${p.isActive ? 'bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500 hover:text-[#0f172a]' : 'bg-cyan-500/10 text-cyan-500 hover:bg-cyan-500 hover:text-[#0f172a]'}`}>{p.isActive ? <PowerOff className="w-4 h-4"/> : <Power className="w-4 h-4"/>}</button>
                        <button onClick={() => confirmAction('確定移除此節點？這將從名單與資料庫中同步刪除該員所有數據。', () => { 
                          setPeople(people.filter(x => x.id !== p.id)); 
                          setRecords(records.filter(r => r.personId !== p.id));
                          showMsg('節點與相關數據已徹底移除'); 
-                       })} className="p-2.5 bg-red-500/10 rounded-xl text-red-400 hover:bg-red-500/20"><Trash2 className="w-4 h-4"/></button>
+                       })} title="永久刪除" className="p-2.5 bg-red-500/10 rounded-xl text-red-400 hover:bg-red-500 hover:text-white transition-all"><Trash2 className="w-4 h-4"/></button>
                      </td>
                    </tr>
                  ))}
