@@ -1,1032 +1,1091 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  AreaChart, Area 
-} from 'recharts';
-import { 
-  LayoutDashboard, Users, Settings, Download, Upload, 
-  Plus, Trash2, Camera, TrendingUp, FileText, Activity, Save, Database,
-  Terminal, Power, PowerOff, Map, Edit2, X, Clock, FileSpreadsheet
-} from 'lucide-react';
-
-// --- 初始模擬資料 ---
-// 取消「其他」股別
-const GROUP_OPTIONS = ['桃園股', '北區股', '中區股', '南區股', '交控中心'];
-
-const initialPeople = [
-  { id: 'p1', name: '坤能', district: '桃園(一)', group: '桃園股', isActive: true },
-  { id: 'p2', name: '子豪', district: '桃園(二)', group: '桃園股', isActive: true },
-  { id: 'p3', name: '宗彬', district: '桃園(三)', group: '桃園股', isActive: true },
-  { id: 'p4', name: '鈺盛', district: '龜山(一)', group: '北區股', isActive: true },
-  { id: 'p5', name: '騰科', district: '龜山(二)', group: '北區股', isActive: true },
-  { id: 'p6', name: '瑞華', district: '大園觀音', group: '中區股', isActive: true },
-  { id: 'p7', name: '政佑', district: '中壢(一)', group: '中區股', isActive: true },
-  { id: 'p8', name: '予謙', district: '平鎮', group: '南區股', isActive: true },
-  { id: 'p9', name: '禮安', district: '平鎮', group: '南區股', isActive: true },
-  { id: 'p10', name: '信文', district: '交控專案', group: '交控中心', isActive: true },
-  { id: 'p12', name: '冠德', district: '桃園(三)', group: '桃園股', isActive: true },
-  { id: 'p13', name: '秉弦', district: '蘆竹(一)', group: '北區股', isActive: true },
-  { id: 'p14', name: '柏孜', district: '八德(二)', group: '中區股', isActive: true },
-  { id: 'p15', name: '小萱', district: '中壢(一)', group: '中區股', isActive: true },
-  { id: 'p16', name: '淑垣', district: '道安綜合', group: '中區股', isActive: true },
-  { id: 'p20', name: '雲蓉', district: '八德(一)', group: '中區股', isActive: true },
-  // 已徹底移除原本被歸類在「其他」的所有人員
-];
-
-const generateMockRecords = () => {
-  const records = [];
-  const years = ['113', '114', '115'];
-  let idCounter = 1;
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>公文量分析儀表板</title>
   
-  const hardcoded11503 = {
-    '冠德': 190, '子豪': 170, '予謙': 154, '秉弦': 118, '柏孜': 112,
-    '小萱': 109, '瑞華': 105, '淑垣': 100,
-    '騰科': 89, '雲蓉': 63
-  };
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 載入 Babel (用於在瀏覽器端即時編譯 React JSX 語法) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
+  <!-- 設定 ES Modules 的 Import Map (指向現代的 ESM CDN) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "recharts": "https://esm.sh/recharts@2.12.0?deps=react@18.2.0,react-dom@18.2.0",
+        "lucide-react": "https://esm.sh/lucide-react@0.344.0?deps=react@18.2.0"
+      }
+    }
+  </script>
 
-  const hardcoded11504 = {
-    '子豪': 145, '秉弦': 142, '冠德': 128, '小萱': 116,
-    '謙謙': 101, '淑垣': 95, '瑞華': 93, '柏孜': 88,
-    '騰科': 77, '雲蓉': 72
-  };
+  <!-- 全域自訂樣式 -->
+  <style>
+    body {
+      background-color: #070b14;
+      color: #e2e8f0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      height: 6px;
+      width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.5);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(34, 211, 238, 0.3);
+      border-radius: 10px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(34, 211, 238, 0.6);
+    }
+  </style>
+</head>
+<body class="bg-[#070b14] bg-[linear-gradient(to_right,#06b6d408_1px,transparent_1px),linear-gradient(to_bottom,#06b6d408_1px,transparent_1px)] bg-[size:24px_24px] antialiased selection:bg-cyan-500/30">
+  
+  <!-- React 應用程式掛載點 -->
+  <div id="root"></div>
 
-  years.forEach(year => {
-    for (let month = 1; month <= 12; month++) {
-      if (year === '115' && month > 5) break;
+  <!-- 應用程式主邏輯 -->
+  <script type="text/babel" data-type="module">
+    import React, { useState, useMemo, useEffect } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import { 
+      LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+      AreaChart, Area 
+    } from 'recharts';
+    import { 
+      LayoutDashboard, Users, Settings, Download, Upload, 
+      Plus, Trash2, Camera, TrendingUp, FileText, Activity, Save, Database,
+      Terminal, Power, PowerOff, Map, Edit2, X, Clock, FileSpreadsheet
+    } from 'lucide-react';
+
+    // --- 初始模擬資料 ---
+    const GROUP_OPTIONS = ['桃園股', '北區股', '中區股', '南區股', '交控中心'];
+
+    const initialPeople = [
+      { id: 'p1', name: '坤能', district: '桃園(一)', group: '桃園股', isActive: true },
+      { id: 'p2', name: '子豪', district: '桃園(二)', group: '桃園股', isActive: true },
+      { id: 'p3', name: '宗彬', district: '桃園(三)', group: '桃園股', isActive: true },
+      { id: 'p4', name: '鈺盛', district: '龜山(一)', group: '北區股', isActive: true },
+      { id: 'p5', name: '騰科', district: '龜山(二)', group: '北區股', isActive: true },
+      { id: 'p6', name: '瑞華', district: '大園觀音', group: '中區股', isActive: true },
+      { id: 'p7', name: '政佑', district: '中壢(一)', group: '中區股', isActive: true },
+      { id: 'p8', name: '予謙', district: '平鎮', group: '南區股', isActive: true },
+      { id: 'p9', name: '禮安', district: '平鎮', group: '南區股', isActive: true },
+      { id: 'p10', name: '信文', district: '交控專案', group: '交控中心', isActive: true },
+      { id: 'p12', name: '冠德', district: '桃園(三)', group: '桃園股', isActive: true },
+      { id: 'p13', name: '秉弦', district: '蘆竹(一)', group: '北區股', isActive: true },
+      { id: 'p14', name: '柏孜', district: '八德(二)', group: '中區股', isActive: true },
+      { id: 'p15', name: '小萱', district: '中壢(一)', group: '中區股', isActive: true },
+      { id: 'p16', name: '淑垣', district: '道安綜合', group: '中區股', isActive: true },
+      { id: 'p20', name: '雲蓉', district: '八德(一)', group: '中區股', isActive: true },
+    ];
+
+    const generateMockRecords = () => {
+      const records = [];
+      const years = ['113', '114', '115'];
+      let idCounter = 1;
       
-      initialPeople.forEach(person => {
-        let volume = 0;
-        
-        if (year === '115' && month === 3) {
-          volume = hardcoded11503[person.name] || 0;
-        } else if (year === '115' && month === 4) {
-          if (person.name === '予謙') {
-            volume = hardcoded11504['謙謙'] || 0;
-          } else {
-            volume = hardcoded11504[person.name] || 0;
-          }
-        } else {
-          const base = Math.floor(Math.random() * 60) + 40; 
-          const seasonality = (month === 3 || month === 12) ? 30 : 0;
-          volume = base + seasonality + Math.floor(Math.random() * 20);
-        }
+      const hardcoded11503 = {
+        '冠德': 190, '子豪': 170, '予謙': 154, '秉弦': 118, '柏孜': 112,
+        '小萱': 109, '瑞華': 105, '淑垣': 100,
+        '騰科': 89, '雲蓉': 63
+      };
 
-        records.push({
-          id: `r${idCounter++}`,
-          year,
-          month: month.toString(),
-          personId: person.id,
-          volume: volume
-        });
+      const hardcoded11504 = {
+        '子豪': 145, '秉弦': 142, '冠德': 128, '小萱': 116,
+        '謙謙': 101, '淑垣': 95, '瑞華': 93, '柏孜': 88,
+        '騰科': 77, '雲蓉': 72
+      };
+
+      years.forEach(year => {
+        for (let month = 1; month <= 12; month++) {
+          if (year === '115' && month > 5) break;
+          
+          initialPeople.forEach(person => {
+            let volume = 0;
+            
+            if (year === '115' && month === 3) {
+              volume = hardcoded11503[person.name] || 0;
+            } else if (year === '115' && month === 4) {
+              if (person.name === '予謙') {
+                volume = hardcoded11504['謙謙'] || 0;
+              } else {
+                volume = hardcoded11504[person.name] || 0;
+              }
+            } else {
+              const base = Math.floor(Math.random() * 60) + 40; 
+              const seasonality = (month === 3 || month === 12) ? 30 : 0;
+              volume = base + seasonality + Math.floor(Math.random() * 20);
+            }
+
+            records.push({
+              id: `r${idCounter++}`,
+              year,
+              month: month.toString(),
+              personId: person.id,
+              volume: volume
+            });
+          });
+        }
       });
-    }
-  });
-  return records;
-};
-
-const initialRecords = generateMockRecords();
-
-// --- 桃園市行政區 極高擬真戰術多邊形 ---
-const ADMIN_DISTRICTS = [
-  { id: '大園', name: '大園區', path: 'M 200,250 L 230,190 L 260,160 L 320,120 L 360,110 L 380,160 L 400,210 L 420,270 L 380,280 L 340,285 L 310,290 L 270,270 L 240,265 Z', cx: 310, cy: 200 },
-  { id: '蘆竹', name: '蘆竹區', path: 'M 360,110 L 400,90 L 440,80 L 480,70 L 510,120 L 540,180 L 560,250 L 530,260 L 500,255 L 480,260 L 450,265 L 420,270 L 400,210 L 380,160 Z', cx: 480, cy: 150 },
-  { id: '龜山', name: '龜山區', path: 'M 480,70 L 560,50 L 650,80 L 740,120 L 820,180 L 840,250 L 860,320 L 780,360 L 720,380 L 650,420 L 630,390 L 600,360 L 580,300 L 560,250 L 540,180 L 510,120 Z', cx: 680, cy: 220 },
-  { id: '桃園', name: '桃園區', path: 'M 480,260 L 500,255 L 530,260 L 560,250 L 580,300 L 600,360 L 560,380 L 520,410 L 490,340 Z', cx: 520, cy: 320 },
-  { id: '八德', name: '八德區', path: 'M 520,410 L 560,380 L 600,360 L 630,390 L 650,420 L 620,460 L 580,480 L 540,460 L 500,450 L 510,430 Z', cx: 580, cy: 420 },
-  { id: '大溪', name: '大溪區', path: 'M 650,420 L 720,380 L 780,360 L 860,320 L 890,380 L 920,450 L 850,520 L 720,580 L 650,620 L 580,640 L 460,650 L 500,600 L 540,540 L 580,480 L 620,460 Z', cx: 720, cy: 490 },
-  { id: '觀音', name: '觀音區', path: 'M 120,400 L 150,340 L 180,280 L 200,250 L 240,265 L 270,270 L 310,290 L 280,340 L 260,380 L 200,390 Z', cx: 200, cy: 330 },
-  { id: '中壢', name: '中壢區', path: 'M 310,290 L 340,285 L 380,280 L 420,270 L 450,265 L 480,260 L 490,340 L 520,410 L 510,430 L 500,450 L 470,480 L 420,530 L 360,540 L 300,550 L 280,450 L 260,380 L 280,340 Z', cx: 380, cy: 410 },
-  { id: '新屋', name: '新屋區', path: 'M 80,680 L 60,600 L 60,520 L 80,460 L 120,400 L 200,390 L 260,380 L 280,450 L 300,550 L 250,600 L 200,750 L 140,720 Z', cx: 170, cy: 550 },
-  { id: '平鎮', name: '平鎮區', path: 'M 420,530 L 470,480 L 500,450 L 540,460 L 580,480 L 540,540 L 500,600 L 460,650 L 400,640 L 340,620 L 380,580 Z', cx: 460, cy: 540 },
-  { id: '楊梅', name: '楊梅區', path: 'M 200,750 L 250,600 L 300,550 L 360,540 L 420,530 L 380,580 L 340,620 L 330,680 L 350,780 L 280,780 Z', cx: 300, cy: 640 },
-  { id: '龍潭', name: '龍潭區', path: 'M 350,780 L 330,680 L 340,620 L 400,640 L 460,650 L 580,640 L 650,620 L 720,580 L 680,680 L 600,760 L 500,820 L 420,810 Z', cx: 500, cy: 700 },
-  { id: '復興', name: '復興區', path: 'M 720,580 L 850,520 L 920,450 L 960,550 L 980,650 L 940,800 L 880,950 L 750,960 L 650,920 L 560,860 L 500,820 L 600,760 L 680,680 Z', cx: 780, cy: 720 },
-];
-
-export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  
-  const [people, setPeople] = useState([]);
-  const [records, setRecords] = useState([]);
-  const [groupLeaders, setGroupLeaders] = useState({});
-  
-  const [filterYear, setFilterYear] = useState('All');
-  const [groupBy, setGroupBy] = useState('person');
-
-  const [editingPersonId, setEditingPersonId] = useState(null);
-
-  useEffect(() => {
-    // 推進版本到 _v5，強力清除舊快取
-    const savedPeople = localStorage.getItem('doc_dash_people_v5');
-    const savedRecords = localStorage.getItem('doc_dash_records_v5');
-    const savedLeaders = localStorage.getItem('doc_dash_leaders_v5');
-    if (savedPeople && savedRecords) {
-      setPeople(JSON.parse(savedPeople));
-      setRecords(JSON.parse(savedRecords));
-      if (savedLeaders) setGroupLeaders(JSON.parse(savedLeaders));
-    } else {
-      setPeople(initialPeople);
-      setRecords(initialRecords);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (people.length > 0) {
-      localStorage.setItem('doc_dash_people_v5', JSON.stringify(people));
-      localStorage.setItem('doc_dash_records_v5', JSON.stringify(records));
-      localStorage.setItem('doc_dash_leaders_v5', JSON.stringify(groupLeaders));
-    }
-  }, [people, records, groupLeaders]);
-
-  const getPerson = (id) => {
-    const p = people.find(p => p.id === id);
-    if (p) return { ...p, isActive: p.isActive !== false };
-    return { name: '未知', district: '未知', group: '未知', isActive: false };
-  };
-
-  const exportChartAsPNG = (chartId, filename) => {
-    const svgElement = document.querySelector(`#${chartId} svg`);
-    if (!svgElement) return alert("找不到圖表元素！");
-    const svgData = new XMLSerializer().serializeToString(svgElement);
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-    const img = new Image();
-    const rect = svgElement.getBoundingClientRect();
-    canvas.width = rect.width * 2;
-    canvas.height = rect.height * 2;
-    img.onload = () => {
-      ctx.fillStyle = "#0f172a"; 
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const a = document.createElement("a");
-      a.download = `${filename}.png`;
-      a.href = canvas.toDataURL("image/png");
-      a.click();
+      return records;
     };
-    img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
-  };
 
-  const handleExportBackup = () => {
-    const backup = { people, records, groupLeaders, exportDate: new Date().toISOString() };
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `SystemBackup_Cyber_${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
+    const initialRecords = generateMockRecords();
 
-  const handleImportBackup = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const data = JSON.parse(event.target.result);
-        if (data.people && data.records) {
-          setPeople(data.people);
-          setRecords(data.records);
-          if (data.groupLeaders) setGroupLeaders(data.groupLeaders);
-          alert('SYSTEM OVERRIDE: 資料還原成功！');
+    // --- 桃園市行政區 極高擬真戰術多邊形 ---
+    const ADMIN_DISTRICTS = [
+      { id: '大園', name: '大園區', path: 'M 200,250 L 230,190 L 260,160 L 320,120 L 360,110 L 380,160 L 400,210 L 420,270 L 380,280 L 340,285 L 310,290 L 270,270 L 240,265 Z', cx: 310, cy: 200 },
+      { id: '蘆竹', name: '蘆竹區', path: 'M 360,110 L 400,90 L 440,80 L 480,70 L 510,120 L 540,180 L 560,250 L 530,260 L 500,255 L 480,260 L 450,265 L 420,270 L 400,210 L 380,160 Z', cx: 480, cy: 150 },
+      { id: '龜山', name: '龜山區', path: 'M 480,70 L 560,50 L 650,80 L 740,120 L 820,180 L 840,250 L 860,320 L 780,360 L 720,380 L 650,420 L 630,390 L 600,360 L 580,300 L 560,250 L 540,180 L 510,120 Z', cx: 680, cy: 220 },
+      { id: '桃園', name: '桃園區', path: 'M 480,260 L 500,255 L 530,260 L 560,250 L 580,300 L 600,360 L 560,380 L 520,410 L 490,340 Z', cx: 520, cy: 320 },
+      { id: '八德', name: '八德區', path: 'M 520,410 L 560,380 L 600,360 L 630,390 L 650,420 L 620,460 L 580,480 L 540,460 L 500,450 L 510,430 Z', cx: 580, cy: 420 },
+      { id: '大溪', name: '大溪區', path: 'M 650,420 L 720,380 L 780,360 L 860,320 L 890,380 L 920,450 L 850,520 L 720,580 L 650,620 L 580,640 L 460,650 L 500,600 L 540,540 L 580,480 L 620,460 Z', cx: 720, cy: 490 },
+      { id: '觀音', name: '觀音區', path: 'M 120,400 L 150,340 L 180,280 L 200,250 L 240,265 L 270,270 L 310,290 L 280,340 L 260,380 L 200,390 Z', cx: 200, cy: 330 },
+      { id: '中壢', name: '中壢區', path: 'M 310,290 L 340,285 L 380,280 L 420,270 L 450,265 L 480,260 L 490,340 L 520,410 L 510,430 L 500,450 L 470,480 L 420,530 L 360,540 L 300,550 L 280,450 L 260,380 L 280,340 Z', cx: 380, cy: 410 },
+      { id: '新屋', name: '新屋區', path: 'M 80,680 L 60,600 L 60,520 L 80,460 L 120,400 L 200,390 L 260,380 L 280,450 L 300,550 L 250,600 L 200,750 L 140,720 Z', cx: 170, cy: 550 },
+      { id: '平鎮', name: '平鎮區', path: 'M 420,530 L 470,480 L 500,450 L 540,460 L 580,480 L 540,540 L 500,600 L 460,650 L 400,640 L 340,620 L 380,580 Z', cx: 460, cy: 540 },
+      { id: '楊梅', name: '楊梅區', path: 'M 200,750 L 250,600 L 300,550 L 360,540 L 420,530 L 380,580 L 340,620 L 330,680 L 350,780 L 280,780 Z', cx: 300, cy: 640 },
+      { id: '龍潭', name: '龍潭區', path: 'M 350,780 L 330,680 L 340,620 L 400,640 L 460,650 L 580,640 L 650,620 L 720,580 L 680,680 L 600,760 L 500,820 L 420,810 Z', cx: 500, cy: 700 },
+      { id: '復興', name: '復興區', path: 'M 720,580 L 850,520 L 920,450 L 960,550 L 980,650 L 940,800 L 880,950 L 750,960 L 650,920 L 560,860 L 500,820 L 600,760 L 680,680 Z', cx: 780, cy: 720 },
+    ];
+
+    function App() {
+      const [activeTab, setActiveTab] = useState('dashboard');
+      
+      const [people, setPeople] = useState([]);
+      const [records, setRecords] = useState([]);
+      const [groupLeaders, setGroupLeaders] = useState({});
+      
+      const [filterYear, setFilterYear] = useState('All');
+      const [groupBy, setGroupBy] = useState('person');
+
+      const [editingPersonId, setEditingPersonId] = useState(null);
+
+      useEffect(() => {
+        // 推進版本到 _v6 以強制更新快取
+        const savedPeople = localStorage.getItem('doc_dash_people_v6');
+        const savedRecords = localStorage.getItem('doc_dash_records_v6');
+        const savedLeaders = localStorage.getItem('doc_dash_leaders_v6');
+        if (savedPeople && savedRecords) {
+          setPeople(JSON.parse(savedPeople));
+          setRecords(JSON.parse(savedRecords));
+          if (savedLeaders) setGroupLeaders(JSON.parse(savedLeaders));
         } else {
-          alert('ERROR: 備份檔案格式不正確！');
+          setPeople(initialPeople);
+          setRecords(initialRecords);
         }
-      } catch (err) {
-        alert('FATAL: 檔案解析失敗！');
-      }
-    };
-    reader.readAsText(file);
-  };
+      }, []);
 
-  const dashboardData = useMemo(() => {
-    let filtered = records;
-    if (filterYear !== 'All') {
-      filtered = records.filter(r => r.year === filterYear);
-    }
+      useEffect(() => {
+        if (people.length > 0) {
+          localStorage.setItem('doc_dash_people_v6', JSON.stringify(people));
+          localStorage.setItem('doc_dash_records_v6', JSON.stringify(records));
+          localStorage.setItem('doc_dash_leaders_v6', JSON.stringify(groupLeaders));
+        }
+      }, [people, records, groupLeaders]);
 
-    const totalVolume = filtered.reduce((sum, r) => sum + r.volume, 0);
-    const uniqueMonthsSet = new Set(filtered.map(r => `${r.year}-${r.month}`));
-    const monthsCount = uniqueMonthsSet.size || 1;
-    const monthlyAvg = Math.round(totalVolume / monthsCount);
+      const getPerson = (id) => {
+        const p = people.find(p => p.id === id);
+        if (p) return { ...p, isActive: p.isActive !== false };
+        return { name: '未知', district: '未知', group: '未知', isActive: false };
+      };
 
-    const deptTotalVolume = records.reduce((sum, r) => sum + r.volume, 0);
-    const deptUniqueMonths = new Set(records.map(r => `${r.year}-${r.month}`)).size || 1;
-    const deptMonthlyAvg = Math.round(deptTotalVolume / deptUniqueMonths);
+      const exportChartAsPNG = (chartId, filename) => {
+        const svgElement = document.querySelector(`#${chartId} svg`);
+        if (!svgElement) return alert("找不到圖表元素！");
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const img = new Image();
+        const rect = svgElement.getBoundingClientRect();
+        canvas.width = rect.width * 2;
+        canvas.height = rect.height * 2;
+        img.onload = () => {
+          ctx.fillStyle = "#0f172a"; 
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const a = document.createElement("a");
+          a.download = `${filename}.png`;
+          a.href = canvas.toDataURL("image/png");
+          a.click();
+        };
+        img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+      };
 
-    const trendMap = {};
-    filtered.forEach(r => {
-      const label = filterYear === 'All' ? `${r.year}年${r.month}月` : `${r.month}月`;
-      const sortKey = filterYear === 'All' ? `${r.year}-${r.month.padStart(2, '0')}` : r.month.padStart(2, '0');
-      if (!trendMap[sortKey]) trendMap[sortKey] = { name: label, '總件數': 0 };
-      trendMap[sortKey]['總件數'] += r.volume;
-    });
-    const trendChartData = Object.keys(trendMap).sort().map(k => trendMap[k]);
+      const handleExportBackup = () => {
+        const backup = { people, records, groupLeaders, exportDate: new Date().toISOString() };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `SystemBackup_Cyber_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      };
 
-    const breakdownMap = {};
-    filtered.forEach(r => {
-      const person = getPerson(r.personId);
-      let key = '';
-      if (groupBy === 'person') {
-        key = person.name + (person.name !== '未知' && person.isActive === false ? '(離)' : '');
-      }
-      else if (groupBy === 'district') key = person.district;
-      else if (groupBy === 'group') key = person.group;
-      else if (groupBy === 'year') key = r.year + ' 年度'; 
+      const handleImportBackup = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const data = JSON.parse(event.target.result);
+            if (data.people && data.records) {
+              setPeople(data.people);
+              setRecords(data.records);
+              if (data.groupLeaders) setGroupLeaders(data.groupLeaders);
+              alert('SYSTEM OVERRIDE: 資料還原成功！');
+            } else {
+              alert('ERROR: 備份檔案格式不正確！');
+            }
+          } catch (err) {
+            alert('FATAL: 檔案解析失敗！');
+          }
+        };
+        reader.readAsText(file);
+      };
 
-      if (!breakdownMap[key]) breakdownMap[key] = { name: key, '件數': 0 };
-      breakdownMap[key]['件數'] += r.volume;
-    });
-    
-    let breakdownChartData = [];
-    if (groupBy === 'year') {
-      breakdownChartData = Object.values(breakdownMap).sort((a, b) => a.name.localeCompare(b.name));
-    } else {
-      breakdownChartData = Object.values(breakdownMap).sort((a, b) => b['件數'] - a['件數']);
-    }
+      const dashboardData = useMemo(() => {
+        let filtered = records;
+        if (filterYear !== 'All') {
+          filtered = records.filter(r => r.year === filterYear);
+        }
 
-    const mapVolumes = {};
-    ADMIN_DISTRICTS.forEach(d => mapVolumes[d.id] = 0);
-    let mappedVolume = 0; 
-    
-    filtered.forEach(r => {
-      const person = getPerson(r.personId);
-      const distStr = person.district || '';
-      const matched = ADMIN_DISTRICTS.filter(d => distStr.includes(d.id));
-      if (matched.length > 0) {
-        const splitVol = r.volume / matched.length;
-        matched.forEach(d => {
-          mapVolumes[d.id] += splitVol;
-          mappedVolume += splitVol; 
+        const totalVolume = filtered.reduce((sum, r) => sum + r.volume, 0);
+        const uniqueMonthsSet = new Set(filtered.map(r => `${r.year}-${r.month}`));
+        const monthsCount = uniqueMonthsSet.size || 1;
+        const monthlyAvg = Math.round(totalVolume / monthsCount);
+
+        const deptTotalVolume = records.reduce((sum, r) => sum + r.volume, 0);
+        const deptUniqueMonths = new Set(records.map(r => `${r.year}-${r.month}`)).size || 1;
+        const deptMonthlyAvg = Math.round(deptTotalVolume / deptUniqueMonths);
+
+        const trendMap = {};
+        filtered.forEach(r => {
+          const label = filterYear === 'All' ? `${r.year}年${r.month}月` : `${r.month}月`;
+          const sortKey = filterYear === 'All' ? `${r.year}-${r.month.padStart(2, '0')}` : r.month.padStart(2, '0');
+          if (!trendMap[sortKey]) trendMap[sortKey] = { name: label, '總件數': 0 };
+          trendMap[sortKey]['總件數'] += r.volume;
         });
-      }
-    });
+        const trendChartData = Object.keys(trendMap).sort().map(k => trendMap[k]);
 
-    let maxMapId = null;
-    let maxMapVol = -1;
-    ADMIN_DISTRICTS.forEach(d => {
-      if(mapVolumes[d.id] > maxMapVol && mapVolumes[d.id] > 0) {
-        maxMapVol = mapVolumes[d.id];
-        maxMapId = d.id;
-      }
-    });
+        const breakdownMap = {};
+        filtered.forEach(r => {
+          const person = getPerson(r.personId);
+          let key = '';
+          if (groupBy === 'person') {
+            key = person.name + (person.name !== '未知' && person.isActive === false ? '(離)' : '');
+          }
+          else if (groupBy === 'district') key = person.district;
+          else if (groupBy === 'group') key = person.group;
+          else if (groupBy === 'year') key = r.year + ' 年度'; 
 
-    return { 
-      totalVolume, monthlyAvg, deptTotalVolume, deptMonthlyAvg, 
-      trendChartData, breakdownChartData, 
-      mapVolumes, maxMapId, mappedVolume
-    };
-  }, [records, filterYear, groupBy, people]); // groupBy 已補回依賴陣列
-
-  const availableYears = useMemo(() => {
-    const years = new Set(records.map(r => r.year));
-    return Array.from(years).sort().reverse();
-  }, [records]);
-
-  const glassPanelClass = "bg-[#0f172a]/80 backdrop-blur-md border border-cyan-500/30 p-6 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.1)] relative overflow-hidden";
-  const inputClass = "w-full bg-[#040810] border border-cyan-500/40 text-cyan-100 placeholder-cyan-800 rounded-lg shadow-[inset_0_0_10px_rgba(6,182,212,0.1)] focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 focus:outline-none transition-all px-3 py-2";
-  const labelClass = "block text-xs font-semibold text-cyan-400 tracking-wider mb-1 uppercase";
-  const btnCyberClass = "bg-cyan-500/10 border border-cyan-400 text-cyan-300 hover:bg-cyan-400 hover:text-[#040810] px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 transition-all duration-300 shadow-[0_0_10px_rgba(6,182,212,0.2)] hover:shadow-[0_0_20px_rgba(6,182,212,0.6)]";
-
-  const renderDashboard = () => (
-    <div className="space-y-6 animate-in fade-in">
-      <div className={`${glassPanelClass} !p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4`}>
-        <div className="flex items-center gap-3">
-          <Terminal className="text-cyan-400 w-6 h-6 animate-pulse" />
-          <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 tracking-widest">
-            SYSTEM_OVERVIEW // 本科公文數據矩陣
-          </h2>
-        </div>
+          if (!breakdownMap[key]) breakdownMap[key] = { name: key, '件數': 0 };
+          breakdownMap[key]['件數'] += r.volume;
+        });
         
-        <div className="flex items-center gap-2 bg-[#040810] p-1.5 rounded-lg border border-cyan-500/30 shadow-[inset_0_0_10px_rgba(6,182,212,0.1)]">
-          <label className="text-xs font-bold text-cyan-600 uppercase tracking-widest pl-2 pr-1 hidden sm:block">DATA_YEAR</label>
-          <button 
-            onClick={() => setFilterYear('All')}
-            className={`px-4 py-1.5 rounded-md text-xs font-black tracking-widest transition-all ${filterYear === 'All' ? 'bg-cyan-500 text-[#040810] shadow-[0_0_10px_rgba(34,211,238,0.6)]' : 'text-cyan-500 hover:bg-cyan-900/40'}`}
-          >
-            ALL
-          </button>
-          {availableYears.map(y => (
-            <button 
-              key={y} 
-              onClick={() => setFilterYear(y)}
-              className={`px-4 py-1.5 rounded-md text-xs font-black tracking-widest transition-all ${filterYear === y ? 'bg-cyan-500 text-[#040810] shadow-[0_0_10px_rgba(34,211,238,0.6)]' : 'text-cyan-500 hover:bg-cyan-900/40'}`}
-            >
-              {y}
-            </button>
-          ))}
-        </div>
-      </div>
+        let breakdownChartData = [];
+        if (groupBy === 'year') {
+          breakdownChartData = Object.values(breakdownMap).sort((a, b) => a.name.localeCompare(b.name));
+        } else {
+          breakdownChartData = Object.values(breakdownMap).sort((a, b) => b['件數'] - a['件數']);
+        }
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { title: `${filterYear === 'All' ? '累計' : filterYear+'年'} 處理總量`, val: dashboardData.totalVolume, icon: FileText, color: 'text-cyan-400', border: 'border-cyan-400', glow: 'shadow-[inset_4px_0_20px_rgba(34,211,238,0.15)]' },
-          { title: `${filterYear === 'All' ? '歷年' : filterYear+'年'} 月均算力`, val: dashboardData.monthlyAvg, icon: Activity, color: 'text-purple-400', border: 'border-purple-400', glow: 'shadow-[inset_4px_0_20px_rgba(168,85,247,0.15)]' },
-          { title: '全域總處理量 [ALL]', val: dashboardData.deptTotalVolume, icon: Database, color: 'text-emerald-400', border: 'border-emerald-400', glow: 'shadow-[inset_4px_0_20px_rgba(52,211,153,0.15)]' },
-          { title: '全域月均流速', val: dashboardData.deptMonthlyAvg, icon: TrendingUp, color: 'text-pink-400', border: 'border-pink-400', glow: 'shadow-[inset_4px_0_20px_rgba(244,114,182,0.15)]' },
-        ].map((kpi, idx) => (
-          <div key={idx} className={`bg-[#0f172a]/90 backdrop-blur-sm p-6 rounded-xl border-y border-r border-slate-700 border-l-4 ${kpi.border} ${kpi.glow} relative group hover:-translate-y-1 transition-transform`}>
-            <div className="flex justify-between items-start relative z-10">
-              <div>
-                <p className="text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">{kpi.title}</p>
-                <h3 className={`text-4xl font-black ${kpi.color} drop-shadow-[0_0_10px_currentColor]`}>{kpi.val.toLocaleString()}</h3>
-              </div>
-              <div className={`p-2 bg-slate-800/50 rounded-lg border border-slate-700/50 group-hover:scale-110 transition-transform`}>
-                <kpi.icon className={`w-6 h-6 ${kpi.color}`} />
-              </div>
+        const mapVolumes = {};
+        ADMIN_DISTRICTS.forEach(d => mapVolumes[d.id] = 0);
+        let mappedVolume = 0; 
+        
+        filtered.forEach(r => {
+          const person = getPerson(r.personId);
+          const distStr = person.district || '';
+          const matched = ADMIN_DISTRICTS.filter(d => distStr.includes(d.id));
+          if (matched.length > 0) {
+            const splitVol = r.volume / matched.length;
+            matched.forEach(d => {
+              mapVolumes[d.id] += splitVol;
+              mappedVolume += splitVol; 
+            });
+          }
+        });
+
+        let maxMapId = null;
+        let maxMapVol = -1;
+        ADMIN_DISTRICTS.forEach(d => {
+          if(mapVolumes[d.id] > maxMapVol && mapVolumes[d.id] > 0) {
+            maxMapVol = mapVolumes[d.id];
+            maxMapId = d.id;
+          }
+        });
+
+        return { 
+          totalVolume, monthlyAvg, deptTotalVolume, deptMonthlyAvg, 
+          trendChartData, breakdownChartData, 
+          mapVolumes, maxMapId, mappedVolume
+        };
+      }, [records, filterYear, groupBy, people]);
+
+      const availableYears = useMemo(() => {
+        const years = new Set(records.map(r => r.year));
+        return Array.from(years).sort().reverse();
+      }, [records]);
+
+      const glassPanelClass = "bg-[#0f172a]/80 backdrop-blur-md border border-cyan-500/30 p-6 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.1)] relative overflow-hidden";
+      const inputClass = "w-full bg-[#040810] border border-cyan-500/40 text-cyan-100 placeholder-cyan-800 rounded-lg shadow-[inset_0_0_10px_rgba(6,182,212,0.1)] focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 focus:outline-none transition-all px-3 py-2";
+      const labelClass = "block text-xs font-semibold text-cyan-400 tracking-wider mb-1 uppercase";
+      const btnCyberClass = "bg-cyan-500/10 border border-cyan-400 text-cyan-300 hover:bg-cyan-400 hover:text-[#040810] px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-2 transition-all duration-300 shadow-[0_0_10px_rgba(6,182,212,0.2)] hover:shadow-[0_0_20px_rgba(6,182,212,0.6)]";
+
+      const renderDashboard = () => (
+        <div className="space-y-6 animate-in fade-in">
+          <div className={`${glassPanelClass} !p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4`}>
+            <div className="flex items-center gap-3">
+              <Terminal className="text-cyan-400 w-6 h-6 animate-pulse" />
+              <h2 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 tracking-widest">
+                SYSTEM_OVERVIEW // 本科公文數據矩陣
+              </h2>
             </div>
-            <div className={`absolute -bottom-6 -right-6 w-24 h-24 ${kpi.color.replace('text', 'bg')} opacity-10 rounded-full blur-2xl`}></div>
-          </div>
-        ))}
-      </div>
-
-      <div className={glassPanelClass}>
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-4">
-             <h3 className="text-sm font-bold text-rose-300 tracking-widest flex items-center gap-2">
-               <Map className="w-4 h-4 text-rose-400" />
-               GEOSPATIAL_ANALYSIS // 桃園市行政區熱點
-             </h3>
-             <div className="px-3 py-1 bg-rose-950/40 border border-rose-500/30 rounded-full flex items-center gap-2 shadow-[0_0_10px_rgba(244,63,94,0.2)] hidden sm:flex">
-               <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
-               <span className="text-xs font-bold text-rose-300">
-                 {filterYear === '115' ? '115年 [即時最高公文區]' : filterYear === 'All' ? '歷年累計 [最高公文區]' : `${filterYear}年度 [最高公文區]`}
-               </span>
-             </div>
-          </div>
-          <button onClick={() => exportChartAsPNG('map-chart', '行政區公文熱點圖')} className="text-rose-400 hover:text-white flex items-center gap-1 text-xs bg-rose-900/30 border border-rose-500/50 px-3 py-1.5 rounded-lg transition-colors hover:shadow-[0_0_10px_rgba(244,63,94,0.5)]">
-            <Camera className="w-4 h-4" /> EXPORT_MAP
-          </button>
-        </div>
-        
-        <div id="map-chart" className="w-full relative bg-[#020408] rounded-xl border border-slate-800 shadow-inner overflow-hidden h-[600px] sm:h-[750px] lg:h-[900px]">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:40px_40px] opacity-20 pointer-events-none"></div>
-
-          <svg viewBox="20 40 960 940" className="w-full h-full relative z-10" preserveAspectRatio="xMidYMid meet">
-             {ADMIN_DISTRICTS.map(d => {
-               const vol = dashboardData.mapVolumes[d.id] || 0;
-               const isMax = d.id === dashboardData.maxMapId && vol > 0;
-               
-               return (
-                 <g key={d.id} className="transition-all duration-500 group cursor-crosshair">
-                   <path 
-                     d={d.path}
-                     fill={isMax ? "rgba(244, 63, 94, 0.25)" : "rgba(15, 23, 42, 0.7)"}
-                     stroke={isMax ? "#f43f5e" : "#0ea5e9"}
-                     strokeWidth={isMax ? "6" : "3"}
-                     strokeLinejoin="round"
-                     strokeLinecap="round"
-                     className={`transition-all duration-300 ${isMax ? 'drop-shadow-[0_0_15px_rgba(244,63,94,0.9)]' : 'group-hover:fill-cyan-900/60 group-hover:stroke-cyan-300 group-hover:stroke-[4px]'}`}
-                   />
-                   
-                   <g transform={`translate(${d.cx}, ${d.cy})`} className="pointer-events-none">
-                     {isMax && (
-                       <>
-                         <circle r="45" fill="#f43f5e" className="animate-ping opacity-30" />
-                         <circle r="25" fill="#f43f5e" opacity="0.6" />
-                       </>
-                     )}
-                     
-                     <circle 
-                       r={isMax ? "12" : "8"} 
-                       fill="#0f172a" 
-                       stroke={isMax ? "#f43f5e" : "#22d3ee"} 
-                       strokeWidth="3" 
-                     />
-                     
-                     <text 
-                       x="0" y="-14" 
-                       fontSize="26" 
-                       fill="none" 
-                       stroke="rgba(0,0,0,0.85)"
-                       strokeWidth="6"
-                       strokeLinejoin="round"
-                       textAnchor="middle" 
-                       fontWeight="900"
-                       letterSpacing="0.05em"
-                       className="select-none"
-                     >
-                       {d.name}
-                     </text>
-                     <text 
-                       x="0" y="-14" 
-                       fontSize="26" 
-                       fill={isMax ? "#fda4af" : "#f8fafc"} 
-                       textAnchor="middle" 
-                       fontWeight="900"
-                       letterSpacing="0.05em"
-                       className="select-none"
-                     >
-                       {d.name}
-                     </text>
-
-                     {vol > 0 && (
-                       <rect 
-                         x="-45" y="10" 
-                         width="90" height="34" 
-                         rx="6" 
-                         fill={isMax ? "#881337" : "#082f49"} 
-                         stroke={isMax ? "#f43f5e" : "#0ea5e9"} 
-                         strokeWidth="2" 
-                         opacity="0.95"
-                       />
-                     )}
-                     
-                     {vol > 0 && (
-                       <text 
-                         x="0" y="34" 
-                         fontSize="20" 
-                         fill={isMax ? "#ffffff" : "#38bdf8"} 
-                         textAnchor="middle" 
-                         fontWeight="900"
-                         className="select-none"
-                       >
-                         {Math.round(vol)} 件
-                       </text>
-                     )}
-                   </g>
-                 </g>
-               )
-             })}
-          </svg>
-        </div>
-      </div>
-
-      <div className={glassPanelClass}>
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-sm font-bold text-cyan-300 tracking-widest flex items-center gap-2">
-            <span className="w-2 h-2 bg-cyan-400 rounded-full animate-ping"></span>
-            VOL_TREND_ANALYSIS // 趨勢圖譜
-          </h3>
-          <button onClick={() => exportChartAsPNG('trend-chart', '趨勢圖譜')} className="text-cyan-400 hover:text-white flex items-center gap-1 text-xs bg-cyan-900/30 border border-cyan-500/50 px-3 py-1.5 rounded-lg transition-colors hover:shadow-[0_0_10px_rgba(34,211,238,0.5)]">
-            <Camera className="w-4 h-4" /> EXPORT_IMG
-          </button>
-        </div>
-        <div id="trend-chart" className="h-[350px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={dashboardData.trendChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="colorCyan" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.6}/>
-                  <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dx={-10} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid #22d3ee', borderRadius: '8px', boxShadow: '0 0 15px rgba(34,211,238,0.2)', color: '#fff' }}
-                itemStyle={{ color: '#22d3ee', fontWeight: 'bold' }}
-              />
-              <Area type="monotone" dataKey="總件數" stroke="#22d3ee" strokeWidth={3} fillOpacity={1} fill="url(#colorCyan)" activeDot={{ r: 6, fill: '#fff', stroke: '#22d3ee', strokeWidth: 2 }} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      <div className={glassPanelClass}>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-          <h3 className="text-sm font-bold text-purple-300 tracking-widest flex items-center gap-2">
-            <span className="w-2 h-2 bg-purple-400 rounded-full animate-ping"></span>
-            DATA_DISTRIBUTION // 分佈矩陣
-          </h3>
-          <div className="flex items-center gap-3">
-            <div className="bg-[#040810] border border-slate-700 p-1 rounded-lg inline-flex">
-              {/* --- 恢復：轄區模組、股別群集、年度總量 的分類按鈕 --- */}
-              {['person', 'district', 'group', 'year'].map(type => (
+            
+            <div className="flex items-center gap-2 bg-[#040810] p-1.5 rounded-lg border border-cyan-500/30 shadow-[inset_0_0_10px_rgba(6,182,212,0.1)]">
+              <label className="text-xs font-bold text-cyan-600 uppercase tracking-widest pl-2 pr-1 hidden sm:block">DATA_YEAR</label>
+              <button 
+                onClick={() => setFilterYear('All')}
+                className={`px-4 py-1.5 rounded-md text-xs font-black tracking-widest transition-all ${filterYear === 'All' ? 'bg-cyan-500 text-[#040810] shadow-[0_0_10px_rgba(34,211,238,0.6)]' : 'text-cyan-500 hover:bg-cyan-900/40'}`}
+              >
+                ALL
+              </button>
+              {availableYears.map(y => (
                 <button 
-                  key={type}
-                  onClick={() => {
-                    setGroupBy(type);
-                    if (type === 'year') setFilterYear('All'); 
-                  }} 
-                  className={`px-4 py-1.5 rounded-md text-xs font-bold tracking-wider transition-all ${groupBy === type ? 'bg-purple-600/30 border border-purple-500 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'text-slate-500 hover:text-slate-300'}`}
+                  key={y} 
+                  onClick={() => setFilterYear(y)}
+                  className={`px-4 py-1.5 rounded-md text-xs font-black tracking-widest transition-all ${filterYear === y ? 'bg-cyan-500 text-[#040810] shadow-[0_0_10px_rgba(34,211,238,0.6)]' : 'text-cyan-500 hover:bg-cyan-900/40'}`}
                 >
-                  {type === 'person' ? '承辦端點' : type === 'district' ? '轄區模組' : type === 'group' ? '股別群集' : '年度總量'}
+                  {y}
                 </button>
               ))}
             </div>
-            <button onClick={() => exportChartAsPNG('breakdown-chart', '公文分佈矩陣')} className="text-purple-400 hover:text-white flex items-center gap-1 text-xs bg-purple-900/30 border border-purple-500/50 px-3 py-1.5 rounded-lg transition-colors hover:shadow-[0_0_10px_rgba(168,85,247,0.5)]">
-              <Camera className="w-4 h-4" /> EXPORT_IMG
-            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[
+              { title: `${filterYear === 'All' ? '累計' : filterYear+'年'} 處理總量`, val: dashboardData.totalVolume, icon: FileText, color: 'text-cyan-400', border: 'border-cyan-400', glow: 'shadow-[inset_4px_0_20px_rgba(34,211,238,0.15)]' },
+              { title: `${filterYear === 'All' ? '歷年' : filterYear+'年'} 月均算力`, val: dashboardData.monthlyAvg, icon: Activity, color: 'text-purple-400', border: 'border-purple-400', glow: 'shadow-[inset_4px_0_20px_rgba(168,85,247,0.15)]' },
+              { title: '全域總處理量 [ALL]', val: dashboardData.deptTotalVolume, icon: Database, color: 'text-emerald-400', border: 'border-emerald-400', glow: 'shadow-[inset_4px_0_20px_rgba(52,211,153,0.15)]' },
+              { title: '全域月均流速', val: dashboardData.deptMonthlyAvg, icon: TrendingUp, color: 'text-pink-400', border: 'border-pink-400', glow: 'shadow-[inset_4px_0_20px_rgba(244,114,182,0.15)]' },
+            ].map((kpi, idx) => (
+              <div key={idx} className={`bg-[#0f172a]/90 backdrop-blur-sm p-6 rounded-xl border-y border-r border-slate-700 border-l-4 ${kpi.border} ${kpi.glow} relative group hover:-translate-y-1 transition-transform`}>
+                <div className="flex justify-between items-start relative z-10">
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">{kpi.title}</p>
+                    <h3 className={`text-4xl font-black ${kpi.color} drop-shadow-[0_0_10px_currentColor]`}>{kpi.val.toLocaleString()}</h3>
+                  </div>
+                  <div className={`p-2 bg-slate-800/50 rounded-lg border border-slate-700/50 group-hover:scale-110 transition-transform`}>
+                    <kpi.icon className={`w-6 h-6 ${kpi.color}`} />
+                  </div>
+                </div>
+                <div className={`absolute -bottom-6 -right-6 w-24 h-24 ${kpi.color.replace('text', 'bg')} opacity-10 rounded-full blur-2xl`}></div>
+              </div>
+            ))}
+          </div>
+
+          <div className={glassPanelClass}>
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center gap-4">
+                 <h3 className="text-sm font-bold text-rose-300 tracking-widest flex items-center gap-2">
+                   <Map className="w-4 h-4 text-rose-400" />
+                   GEOSPATIAL_ANALYSIS // 桃園市行政區熱點
+                 </h3>
+                 <div className="px-3 py-1 bg-rose-950/40 border border-rose-500/30 rounded-full flex items-center gap-2 shadow-[0_0_10px_rgba(244,63,94,0.2)] hidden sm:flex">
+                   <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+                   <span className="text-xs font-bold text-rose-300">
+                     {filterYear === '115' ? '115年 [即時最高公文區]' : filterYear === 'All' ? '歷年累計 [最高公文區]' : `${filterYear}年度 [最高公文區]`}
+                   </span>
+                 </div>
+              </div>
+              <button onClick={() => exportChartAsPNG('map-chart', '行政區公文熱點圖')} className="text-rose-400 hover:text-white flex items-center gap-1 text-xs bg-rose-900/30 border border-rose-500/50 px-3 py-1.5 rounded-lg transition-colors hover:shadow-[0_0_10px_rgba(244,63,94,0.5)]">
+                <Camera className="w-4 h-4" /> EXPORT_MAP
+              </button>
+            </div>
+            
+            <div id="map-chart" className="w-full relative bg-[#020408] rounded-xl border border-slate-800 shadow-inner overflow-hidden h-[600px] sm:h-[750px] lg:h-[900px]">
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:40px_40px] opacity-20 pointer-events-none"></div>
+
+              <svg viewBox="20 40 960 940" className="w-full h-full relative z-10" preserveAspectRatio="xMidYMid meet">
+                 {ADMIN_DISTRICTS.map(d => {
+                   const vol = dashboardData.mapVolumes[d.id] || 0;
+                   const isMax = d.id === dashboardData.maxMapId && vol > 0;
+                   
+                   return (
+                     <g key={d.id} className="transition-all duration-500 group cursor-crosshair">
+                       <path 
+                         d={d.path}
+                         fill={isMax ? "rgba(244, 63, 94, 0.25)" : "rgba(15, 23, 42, 0.7)"}
+                         stroke={isMax ? "#f43f5e" : "#0ea5e9"}
+                         strokeWidth={isMax ? "6" : "3"}
+                         strokeLinejoin="round"
+                         strokeLinecap="round"
+                         className={`transition-all duration-300 ${isMax ? 'drop-shadow-[0_0_15px_rgba(244,63,94,0.9)]' : 'group-hover:fill-cyan-900/60 group-hover:stroke-cyan-300 group-hover:stroke-[4px]'}`}
+                       />
+                       
+                       <g transform={`translate(${d.cx}, ${d.cy})`} className="pointer-events-none">
+                         {isMax && (
+                           <>
+                             <circle r="45" fill="#f43f5e" className="animate-ping opacity-30" />
+                             <circle r="25" fill="#f43f5e" opacity="0.6" />
+                           </>
+                         )}
+                         
+                         <circle 
+                           r={isMax ? "12" : "8"} 
+                           fill="#0f172a" 
+                           stroke={isMax ? "#f43f5e" : "#22d3ee"} 
+                           strokeWidth="3" 
+                         />
+                         
+                         <text 
+                           x="0" y="-14" 
+                           fontSize="26" 
+                           fill="none" 
+                           stroke="rgba(0,0,0,0.85)"
+                           strokeWidth="6"
+                           strokeLinejoin="round"
+                           textAnchor="middle" 
+                           fontWeight="900"
+                           letterSpacing="0.05em"
+                           className="select-none"
+                         >
+                           {d.name}
+                         </text>
+                         <text 
+                           x="0" y="-14" 
+                           fontSize="26" 
+                           fill={isMax ? "#fda4af" : "#f8fafc"} 
+                           textAnchor="middle" 
+                           fontWeight="900"
+                           letterSpacing="0.05em"
+                           className="select-none"
+                         >
+                           {d.name}
+                         </text>
+
+                         {vol > 0 && (
+                           <rect 
+                             x="-45" y="10" 
+                             width="90" height="34" 
+                             rx="6" 
+                             fill={isMax ? "#881337" : "#082f49"} 
+                             stroke={isMax ? "#f43f5e" : "#0ea5e9"} 
+                             strokeWidth="2" 
+                             opacity="0.95"
+                           />
+                         )}
+                         
+                         {vol > 0 && (
+                           <text 
+                             x="0" y="34" 
+                             fontSize="20" 
+                             fill={isMax ? "#ffffff" : "#38bdf8"} 
+                             textAnchor="middle" 
+                             fontWeight="900"
+                             className="select-none"
+                           >
+                             {Math.round(vol)} 件
+                           </text>
+                         )}
+                       </g>
+                     </g>
+                   )
+                 })}
+              </svg>
+            </div>
+          </div>
+
+          <div className={glassPanelClass}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-sm font-bold text-cyan-300 tracking-widest flex items-center gap-2">
+                <span className="w-2 h-2 bg-cyan-400 rounded-full animate-ping"></span>
+                VOL_TREND_ANALYSIS // 趨勢圖譜
+              </h3>
+              <button onClick={() => exportChartAsPNG('trend-chart', '趨勢圖譜')} className="text-cyan-400 hover:text-white flex items-center gap-1 text-xs bg-cyan-900/30 border border-cyan-500/50 px-3 py-1.5 rounded-lg transition-colors hover:shadow-[0_0_10px_rgba(34,211,238,0.5)]">
+                <Camera className="w-4 h-4" /> EXPORT_IMG
+              </button>
+            </div>
+            <div id="trend-chart" className="h-[350px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={dashboardData.trendChartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorCyan" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.6}/>
+                      <stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dx={-10} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid #22d3ee', borderRadius: '8px', boxShadow: '0 0 15px rgba(34,211,238,0.2)', color: '#fff' }}
+                    itemStyle={{ color: '#22d3ee', fontWeight: 'bold' }}
+                  />
+                  <Area type="monotone" dataKey="總件數" stroke="#22d3ee" strokeWidth={3} fillOpacity={1} fill="url(#colorCyan)" activeDot={{ r: 6, fill: '#fff', stroke: '#22d3ee', strokeWidth: 2 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className={glassPanelClass}>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+              <h3 className="text-sm font-bold text-purple-300 tracking-widest flex items-center gap-2">
+                <span className="w-2 h-2 bg-purple-400 rounded-full animate-ping"></span>
+                DATA_DISTRIBUTION // 分佈矩陣
+              </h3>
+              <div className="flex items-center gap-3">
+                <div className="bg-[#040810] border border-slate-700 p-1 rounded-lg inline-flex">
+                  {['person', 'district', 'group', 'year'].map(type => (
+                    <button 
+                      key={type}
+                      onClick={() => {
+                        setGroupBy(type);
+                        if (type === 'year') setFilterYear('All'); 
+                      }} 
+                      className={`px-4 py-1.5 rounded-md text-xs font-bold tracking-wider transition-all ${groupBy === type ? 'bg-purple-600/30 border border-purple-500 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                      {type === 'person' ? '承辦端點' : type === 'district' ? '轄區模組' : type === 'group' ? '股別群集' : '年度總量'}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => exportChartAsPNG('breakdown-chart', '公文分佈矩陣')} className="text-purple-400 hover:text-white flex items-center gap-1 text-xs bg-purple-900/30 border border-purple-500/50 px-3 py-1.5 rounded-lg transition-colors hover:shadow-[0_0_10px_rgba(168,85,247,0.5)]">
+                  <Camera className="w-4 h-4" /> EXPORT_IMG
+                </button>
+              </div>
+            </div>
+            <div id="breakdown-chart" className="h-[350px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dashboardData.breakdownChartData} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+                  <defs>
+                    <linearGradient id="colorPurple" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#c084fc" stopOpacity={1}/>
+                      <stop offset="100%" stopColor="#7e22ce" stopOpacity={0.6}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dx={-10} />
+                  <Tooltip 
+                    cursor={{fill: 'rgba(30, 41, 59, 0.5)'}}
+                    contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid #c084fc', borderRadius: '8px', boxShadow: '0 0 15px rgba(168,85,247,0.2)' }}
+                    itemStyle={{ color: '#e879f9', fontWeight: 'bold' }}
+                  />
+                  <Bar dataKey="件數" fill="url(#colorPurple)" radius={[4, 4, 0, 0]} barSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
-        <div id="breakdown-chart" className="h-[350px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dashboardData.breakdownChartData} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
-              <defs>
-                <linearGradient id="colorPurple" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#c084fc" stopOpacity={1}/>
-                  <stop offset="100%" stopColor="#7e22ce" stopOpacity={0.6}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
-              <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dx={-10} />
-              <Tooltip 
-                cursor={{fill: 'rgba(30, 41, 59, 0.5)'}}
-                contentStyle={{ backgroundColor: 'rgba(15, 23, 42, 0.9)', border: '1px solid #c084fc', borderRadius: '8px', boxShadow: '0 0 15px rgba(168,85,247,0.2)' }}
-                itemStyle={{ color: '#e879f9', fontWeight: 'bold' }}
-              />
-              <Bar dataKey="件數" fill="url(#colorPurple)" radius={[4, 4, 0, 0]} barSize={40} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    </div>
-  );
-
-  const PersonDetailModal = ({ personId, onClose }) => {
-    const person = getPerson(personId);
-    const [inputYear, setInputYear] = useState('115');
-    const [inputMonth, setInputMonth] = useState('1');
-    const [inputVolume, setInputVolume] = useState('');
-
-    const personRecords = useMemo(() => {
-      return records
-        .filter(r => r.personId === personId)
-        .sort((a, b) => {
-           if (parseInt(a.year) !== parseInt(b.year)) return parseInt(a.year) - parseInt(b.year);
-           return parseInt(a.month) - parseInt(b.month);
-        });
-    }, [records, personId]);
-
-    const handleUpsertRecord = (e) => {
-      e.preventDefault();
-      if (!inputYear || !inputMonth || !inputVolume) {
-        alert('ERR_MISSING_DATA: 請填寫完整參數'); return;
-      }
-      
-      const existingRecordIndex = records.findIndex(r => 
-        r.personId === personId && r.year === inputYear && r.month === inputMonth
       );
 
-      if (existingRecordIndex >= 0) {
-        const newRecords = [...records];
-        newRecords[existingRecordIndex].volume = parseInt(inputVolume, 10);
-        setRecords(newRecords);
-      } else {
-        setRecords([...records, { 
-          id: 'r' + Date.now(), 
-          year: inputYear, 
-          month: inputMonth, 
-          personId: personId, 
-          volume: parseInt(inputVolume, 10) 
-        }]);
-      }
-      setInputVolume(''); 
-    };
+      const PersonDetailModal = ({ personId, onClose }) => {
+        const person = getPerson(personId);
+        const [inputYear, setInputYear] = useState('115');
+        const [inputMonth, setInputMonth] = useState('1');
+        const [inputVolume, setInputVolume] = useState('');
 
-    const handleDeleteRecord = (id) => {
-      if (window.confirm('確定抹除此筆流速紀錄？')) {
-        setRecords(records.filter(r => r.id !== id));
-      }
-    };
+        const personRecords = useMemo(() => {
+          return records
+            .filter(r => r.personId === personId)
+            .sort((a, b) => {
+               if (parseInt(a.year) !== parseInt(b.year)) return parseInt(a.year) - parseInt(b.year);
+               return parseInt(a.month) - parseInt(b.month);
+            });
+        }, [records, personId]);
 
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-[#040810]/80 backdrop-blur-sm" onClick={onClose}></div>
-        
-        <div className="relative w-full max-w-3xl bg-[#0f172a] border border-cyan-500/50 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.2)] overflow-hidden flex flex-col max-h-[90vh]">
+        const handleUpsertRecord = (e) => {
+          e.preventDefault();
+          if (!inputYear || !inputMonth || !inputVolume) {
+            alert('ERR_MISSING_DATA: 請填寫完整參數'); return;
+          }
           
-          <div className="bg-[#040810]/80 border-b border-cyan-500/30 p-6 flex justify-between items-start">
-            <div>
-              <div className="flex items-center gap-3 mb-1">
-                <h2 className="text-2xl font-black text-cyan-100">{person.name}</h2>
-                {person.isActive !== false ? (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-900/50 text-cyan-400 border border-cyan-500/50 animate-pulse">ONLINE</span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-600">OFFLINE</span>
-                )}
-              </div>
-              <p className="text-sm font-mono text-cyan-500">[{person.group}] {person.district}</p>
-            </div>
-            <button onClick={onClose} className="text-slate-400 hover:text-white bg-slate-800/50 hover:bg-red-500/20 p-2 rounded-lg transition-all border border-transparent hover:border-red-500/50">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          const existingRecordIndex = records.findIndex(r => 
+            r.personId === personId && r.year === inputYear && r.month === inputMonth
+          );
 
-          <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
+          if (existingRecordIndex >= 0) {
+            const newRecords = [...records];
+            newRecords[existingRecordIndex].volume = parseInt(inputVolume, 10);
+            setRecords(newRecords);
+          } else {
+            setRecords([...records, { 
+              id: 'r' + Date.now(), 
+              year: inputYear, 
+              month: inputMonth, 
+              personId: personId, 
+              volume: parseInt(inputVolume, 10) 
+            }]);
+          }
+          setInputVolume(''); 
+        };
+
+        const handleDeleteRecord = (id) => {
+          if (window.confirm('確定抹除此筆流速紀錄？')) {
+            setRecords(records.filter(r => r.id !== id));
+          }
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-[#040810]/80 backdrop-blur-sm" onClick={onClose}></div>
             
-            <div className="bg-[#040810]/50 border border-cyan-500/20 p-5 rounded-xl">
-              <h3 className="text-sm font-bold text-emerald-300 tracking-widest mb-4 flex items-center gap-2">
-                 <Database className="w-4 h-4"/> DATA_ENTRY // 新增或編輯數據
-              </h3>
-              <form onSubmit={handleUpsertRecord} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div className="relative w-full max-w-3xl bg-[#0f172a] border border-cyan-500/50 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.2)] overflow-hidden flex flex-col max-h-[90vh]">
+              
+              <div className="bg-[#040810]/80 border-b border-cyan-500/30 p-6 flex justify-between items-start">
                 <div>
-                  <label className={labelClass.replace('cyan', 'emerald')}>YEAR (年)</label>
-                  <input type="number" value={inputYear} onChange={e => setInputYear(e.target.value)} className={inputClass.replace(/cyan/g, 'emerald')} />
+                  <div className="flex items-center gap-3 mb-1">
+                    <h2 className="text-2xl font-black text-cyan-100">{person.name}</h2>
+                    {person.isActive !== false ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-900/50 text-cyan-400 border border-cyan-500/50 animate-pulse">ONLINE</span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-400 border border-slate-600">OFFLINE</span>
+                    )}
+                  </div>
+                  <p className="text-sm font-mono text-cyan-500">[{person.group}] {person.district}</p>
+                </div>
+                <button onClick={onClose} className="text-slate-400 hover:text-white bg-slate-800/50 hover:bg-red-500/20 p-2 rounded-lg transition-all border border-transparent hover:border-red-500/50">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
+                
+                <div className="bg-[#040810]/50 border border-cyan-500/20 p-5 rounded-xl">
+                  <h3 className="text-sm font-bold text-emerald-300 tracking-widest mb-4 flex items-center gap-2">
+                     <Database className="w-4 h-4"/> DATA_ENTRY // 新增或編輯數據
+                  </h3>
+                  <form onSubmit={handleUpsertRecord} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                      <label className={labelClass.replace('cyan', 'emerald')}>YEAR (年)</label>
+                      <input type="number" value={inputYear} onChange={e => setInputYear(e.target.value)} className={inputClass.replace(/cyan/g, 'emerald')} />
+                    </div>
+                    <div>
+                      <label className={labelClass.replace('cyan', 'emerald')}>MONTH (月)</label>
+                      <select value={inputMonth} onChange={e => setInputMonth(e.target.value)} className={inputClass.replace(/cyan/g, 'emerald')}>
+                        {[...Array(12)].map((_, i) => <option key={i+1} value={i+1} className="bg-[#0f172a]">{i+1}月</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass.replace('cyan', 'emerald')}>VOLUME (件數)</label>
+                      <input type="number" value={inputVolume} onChange={e => setInputVolume(e.target.value)} className={inputClass.replace(/cyan/g, 'emerald')} placeholder="INPUT_NUM" />
+                    </div>
+                    <button type="submit" className={btnCyberClass.replace(/cyan/g, 'emerald')}>
+                      <Save className="w-4 h-4" /> UPSERT_DATA
+                    </button>
+                  </form>
+                  <p className="mt-3 text-xs text-emerald-500/70 font-mono">* 智慧邏輯：若該年月已有紀錄，將自動覆蓋更新為最新件數。</p>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-bold text-cyan-300 tracking-widest mb-4 flex items-center gap-2">
+                     <Clock className="w-4 h-4"/> TIMELINE_RECORDS // 歷史軌跡 (依時間先後)
+                  </h3>
+                  
+                  <div className="bg-[#040810]/50 border border-slate-700/50 rounded-xl overflow-hidden shadow-inner">
+                    {personRecords.length > 0 ? (
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-slate-800/50">
+                          <thead className="bg-[#0a101f]">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-bold text-slate-400 tracking-widest">TIME_PHASE (年月)</th>
+                              <th className="px-6 py-3 text-left text-xs font-bold text-slate-400 tracking-widest">VOLUME (公文量)</th>
+                              <th className="px-6 py-3 text-right text-xs font-bold text-slate-400 tracking-widest">ACTION</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-800/50">
+                            {personRecords.map(record => (
+                              <tr key={record.id} className="hover:bg-cyan-900/10 transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap text-cyan-400 font-mono text-sm">
+                                  {record.year} 年 {record.month.padStart(2, '0')} 月
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap font-black text-cyan-100 drop-shadow-[0_0_5px_rgba(34,211,238,0.3)]">
+                                  {record.volume} 件
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-right">
+                                  <button onClick={() => handleDeleteRecord(record.id)} className="text-red-400/50 hover:text-red-400 hover:bg-red-900/20 p-2 rounded-lg transition-all border border-transparent hover:border-red-500/50">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                       <div className="p-8 text-center text-slate-500 font-mono text-sm">NO_RECORDS // 該節點尚無數據</div>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        );
+      };
+
+      const PersonnelManager = () => {
+        const [newPerson, setNewPerson] = useState({ name: '', district: '', group: GROUP_OPTIONS[0], isActive: true });
+        const [activeGroupTab, setActiveGroupTab] = useState(GROUP_OPTIONS[0]);
+        const [editingLeaderGroup, setEditingLeaderGroup] = useState(null);
+        const [tempLeaderName, setTempLeaderName] = useState('');
+
+        const [editingNodeId, setEditingNodeId] = useState(null);
+
+        const handleUpsertPerson = (e) => {
+          e.preventDefault();
+          if (!newPerson.name || !newPerson.district || !newPerson.group) {
+            alert('ERR_MISSING_DATA: 請填寫完整參數'); return;
+          }
+          
+          if (editingNodeId) {
+            setPeople(people.map(p => p.id === editingNodeId ? { ...p, ...newPerson } : p));
+            setEditingNodeId(null);
+          } else {
+            const newId = 'p' + Date.now();
+            setPeople([...people, { id: newId, ...newPerson }]);
+          }
+          setNewPerson({ name: '', district: '', group: activeGroupTab, isActive: true });
+        };
+
+        const handleEditNode = (person) => {
+          setEditingNodeId(person.id);
+          setNewPerson({ name: person.name, district: person.district, group: person.group, isActive: person.isActive !== false });
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+
+        const handleCancelEdit = () => {
+          setEditingNodeId(null);
+          setNewPerson({ name: '', district: '', group: activeGroupTab, isActive: true });
+        };
+
+        const handleDeletePerson = (id) => {
+          if (window.confirm('WARNING: 確定要註銷此人員節點嗎？(歷史軌跡將轉為未知)')) {
+            setPeople(people.filter(p => p.id !== id));
+          }
+        };
+
+        const handleToggleStatus = (id) => {
+          setPeople(people.map(p => {
+            if (p.id === id) return { ...p, isActive: p.isActive === false ? true : false };
+            return p;
+          }));
+        };
+
+        const groupedPeople = GROUP_OPTIONS.reduce((acc, groupName) => {
+          acc[groupName] = people.filter(p => p.group === groupName);
+          return acc;
+        }, {});
+        
+        const otherGroups = [...new Set(people.filter(p => !GROUP_OPTIONS.includes(p.group)).map(p => p.group))];
+        otherGroups.forEach(groupName => {
+          groupedPeople[groupName] = people.filter(p => p.group === groupName);
+        });
+
+        const allDisplayGroups = [...GROUP_OPTIONS, ...otherGroups].filter(g => groupedPeople[g] && groupedPeople[g].length > 0);
+
+        useEffect(() => {
+          if (allDisplayGroups.length > 0 && !allDisplayGroups.includes(activeGroupTab)) {
+            setActiveGroupTab(allDisplayGroups[0]);
+          }
+        }, [people]);
+
+        const currentList = (groupedPeople[activeGroupTab] || []).sort((a, b) => {
+          const aActive = a.isActive !== false;
+          const bActive = b.isActive !== false;
+          return aActive === bActive ? 0 : aActive ? -1 : 1;
+        });
+
+        const handleSaveLeader = () => {
+          setGroupLeaders(prev => ({ ...prev, [activeGroupTab]: tempLeaderName }));
+          setEditingLeaderGroup(null);
+        };
+
+        return (
+          <div className="space-y-6 animate-in fade-in relative">
+            <div className={glassPanelClass}>
+              <h2 className={`text-sm font-bold tracking-widest mb-6 flex items-center gap-2 ${editingNodeId ? 'text-emerald-300' : 'text-cyan-300'}`}>
+                {editingNodeId ? <Edit2 className="w-5 h-5"/> : <Users className="w-5 h-5"/>}
+                {editingNodeId ? 'EDIT_NODE // 編輯人員節點' : 'INIT_NEW_NODE // 建立人員節點'}
+              </h2>
+              <form onSubmit={handleUpsertPerson} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end relative z-10">
+                <div>
+                  <label className={editingNodeId ? labelClass.replace('cyan', 'emerald') : labelClass}>識別碼 (姓名)</label>
+                  <input type="text" value={newPerson.name} onChange={e => setNewPerson({...newPerson, name: e.target.value})} className={editingNodeId ? inputClass.replace(/cyan/g, 'emerald') : inputClass} placeholder="INPUT_NAME..." />
                 </div>
                 <div>
-                  <label className={labelClass.replace('cyan', 'emerald')}>MONTH (月)</label>
-                  <select value={inputMonth} onChange={e => setInputMonth(e.target.value)} className={inputClass.replace(/cyan/g, 'emerald')}>
-                    {[...Array(12)].map((_, i) => <option key={i+1} value={i+1} className="bg-[#0f172a]">{i+1}月</option>)}
+                  <label className={editingNodeId ? labelClass.replace('cyan', 'emerald') : labelClass}>隸屬群集 (股別)</label>
+                  <select value={newPerson.group} onChange={e => setNewPerson({...newPerson, group: e.target.value})} className={editingNodeId ? inputClass.replace(/cyan/g, 'emerald') : inputClass}>
+                    {GROUP_OPTIONS.map(g => <option key={g} value={g} className="bg-[#0f172a]">{g}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className={labelClass.replace('cyan', 'emerald')}>VOLUME (件數)</label>
-                  <input type="number" value={inputVolume} onChange={e => setInputVolume(e.target.value)} className={inputClass.replace(/cyan/g, 'emerald')} placeholder="INPUT_NUM" />
+                  <label className={editingNodeId ? labelClass.replace('cyan', 'emerald') : labelClass}>負責扇區 (轄區)</label>
+                  <input type="text" value={newPerson.district} onChange={e => setNewPerson({...newPerson, district: e.target.value})} className={editingNodeId ? inputClass.replace(/cyan/g, 'emerald') : inputClass} placeholder="INPUT_SECTOR..." />
                 </div>
-                <button type="submit" className={btnCyberClass.replace(/cyan/g, 'emerald')}>
-                  <Save className="w-4 h-4" /> UPSERT_DATA
-                </button>
+                <div>
+                  <label className={editingNodeId ? labelClass.replace('cyan', 'emerald') : labelClass}>節點狀態 (現/離職)</label>
+                  <select value={newPerson.isActive} onChange={e => setNewPerson({...newPerson, isActive: e.target.value === 'true'})} className={editingNodeId ? inputClass.replace(/cyan/g, 'emerald') : inputClass}>
+                    <option value={true} className="bg-[#0f172a] text-cyan-400">現職 (ONLINE)</option>
+                    <option value={false} className="bg-[#0f172a] text-slate-500">非現職 (OFFLINE)</option>
+                  </select>
+                </div>
+                {editingNodeId ? (
+                  <div className="flex gap-2">
+                    <button type="submit" className={btnCyberClass.replace('bg-cyan-500/10', 'bg-emerald-500/10').replace(/cyan/g, 'emerald')}>
+                      <Save className="w-5 h-5" /> UPDATE
+                    </button>
+                    <button type="button" onClick={handleCancelEdit} className="bg-red-500/10 border border-red-400 text-red-300 hover:bg-red-400 hover:text-[#040810] px-4 py-2 rounded-lg font-bold transition-all duration-300 flex items-center justify-center">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button type="submit" className={btnCyberClass}>
+                    <Plus className="w-5 h-5" /> EXECUTE
+                  </button>
+                )}
               </form>
-              <p className="mt-3 text-xs text-emerald-500/70 font-mono">* 智慧邏輯：若該年月已有紀錄，將自動覆蓋更新為最新件數。</p>
             </div>
 
-            <div>
-              <h3 className="text-sm font-bold text-cyan-300 tracking-widest mb-4 flex items-center gap-2">
-                 <Clock className="w-4 h-4"/> TIMELINE_RECORDS // 歷史軌跡 (依時間先後)
-              </h3>
-              
-              <div className="bg-[#040810]/50 border border-slate-700/50 rounded-xl overflow-hidden shadow-inner">
-                {personRecords.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-slate-800/50">
-                      <thead className="bg-[#0a101f]">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-slate-400 tracking-widest">TIME_PHASE (年月)</th>
-                          <th className="px-6 py-3 text-left text-xs font-bold text-slate-400 tracking-widest">VOLUME (公文量)</th>
-                          <th className="px-6 py-3 text-right text-xs font-bold text-slate-400 tracking-widest">ACTION</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800/50">
-                        {personRecords.map(record => (
-                          <tr key={record.id} className="hover:bg-cyan-900/10 transition-colors">
-                            <td className="px-6 py-4 whitespace-nowrap text-cyan-400 font-mono text-sm">
-                              {record.year} 年 {record.month.padStart(2, '0')} 月
+            {allDisplayGroups.length > 0 ? (
+              <div className="bg-[#0f172a]/60 border border-slate-700/50 rounded-xl overflow-hidden shadow-lg flex flex-col">
+                <div className="flex overflow-x-auto bg-[#040810]/80 border-b border-cyan-500/20 custom-scrollbar">
+                  {allDisplayGroups.map(groupName => (
+                    <button
+                      key={groupName}
+                      onClick={() => {
+                        setActiveGroupTab(groupName);
+                        setEditingLeaderGroup(null);
+                      }}
+                      className={`px-6 py-4 font-bold tracking-widest text-sm whitespace-nowrap transition-all border-b-2 flex items-center gap-2 ${
+                        activeGroupTab === groupName
+                          ? 'border-cyan-400 text-cyan-300 bg-cyan-900/20'
+                          : 'border-transparent text-slate-500 hover:text-cyan-100 hover:bg-white/5'
+                      }`}
+                    >
+                      {groupName}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${activeGroupTab === groupName ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-800 text-slate-400'}`}>
+                        {groupedPeople[groupName].length}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="bg-[#0a101f] p-4 flex items-center justify-between border-b border-slate-800/50">
+                  <div className="flex items-center gap-3">
+                     <span className="text-slate-500 font-bold tracking-widest text-xs">SECTION_CHIEF // 股長</span>
+                     {editingLeaderGroup === activeGroupTab ? (
+                       <div className="flex items-center gap-2">
+                         <input
+                           type="text"
+                           value={tempLeaderName}
+                           onChange={e => setTempLeaderName(e.target.value)}
+                           className="bg-[#040810] border border-cyan-500/50 text-cyan-100 rounded px-3 py-1 text-sm focus:outline-none focus:border-cyan-300 shadow-[inset_0_0_5px_rgba(6,182,212,0.2)]"
+                           placeholder="輸入股長姓名"
+                           autoFocus
+                         />
+                         <button onClick={handleSaveLeader} className="text-emerald-400 hover:text-emerald-300 p-1 bg-emerald-900/30 rounded border border-emerald-500/30 transition-colors" title="儲存"><Save className="w-4 h-4"/></button>
+                         <button onClick={() => setEditingLeaderGroup(null)} className="text-red-400 hover:text-red-300 p-1 bg-red-900/30 rounded border border-red-500/30 transition-colors" title="取消"><X className="w-4 h-4"/></button>
+                       </div>
+                     ) : (
+                       <div className="flex items-center gap-2 group/leader">
+                         <span className={`font-black text-lg ${groupLeaders[activeGroupTab] ? 'text-cyan-300 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]' : 'text-slate-600'}`}>
+                           {groupLeaders[activeGroupTab] || '尚未指派'}
+                         </span>
+                         <button 
+                           onClick={() => {
+                             setTempLeaderName(groupLeaders[activeGroupTab] || '');
+                             setEditingLeaderGroup(activeGroupTab);
+                           }} 
+                           className="text-slate-500 hover:text-cyan-400 p-1.5 rounded-lg transition-colors opacity-0 group-hover/leader:opacity-100"
+                           title="編輯股長"
+                         >
+                           <Edit2 className="w-4 h-4" />
+                         </button>
+                       </div>
+                     )}
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto min-h-[250px]">
+                  <table className="min-w-full divide-y divide-slate-800/50">
+                    <thead className="bg-[#0a101f]">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-bold text-slate-400 tracking-widest w-1/4">STATUS</th>
+                        <th className="px-6 py-3 text-left text-xs font-bold text-slate-400 tracking-widest w-1/4">IDENTIFIER</th>
+                        <th className="px-6 py-3 text-left text-xs font-bold text-slate-400 tracking-widest w-1/4">SECTOR</th>
+                        <th className="px-6 py-3 text-right text-xs font-bold text-slate-400 tracking-widest w-1/4">ACTION</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/50">
+                      {currentList.map(person => {
+                        const isOnline = person.isActive !== false;
+                        return (
+                          <tr key={person.id} className={`transition-all duration-300 ${isOnline ? 'hover:bg-cyan-900/20' : 'opacity-50 grayscale hover:opacity-80 bg-slate-900/30'}`}>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {isOnline ? (
+                                 <span className="flex items-center gap-2 text-xs font-mono text-cyan-400">
+                                   <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_5px_#22d3ee] animate-pulse"></span>
+                                   ONLINE
+                                 </span>
+                              ) : (
+                                 <span className="flex items-center gap-2 text-xs font-mono text-slate-500">
+                                   <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+                                   OFFLINE
+                                 </span>
+                              )}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap font-black text-cyan-100 drop-shadow-[0_0_5px_rgba(34,211,238,0.3)]">
-                              {record.volume} 件
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right">
-                              <button onClick={() => handleDeleteRecord(record.id)} className="text-red-400/50 hover:text-red-400 hover:bg-red-900/20 p-2 rounded-lg transition-all border border-transparent hover:border-red-500/50">
+                            <td className={`px-6 py-4 whitespace-nowrap font-medium ${isOnline ? 'text-cyan-50' : 'text-slate-400 line-through decoration-slate-600'}`}>{person.name}</td>
+                            <td className={`px-6 py-4 whitespace-nowrap font-mono text-sm ${isOnline ? 'text-slate-300' : 'text-slate-500'}`}>{person.district}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right flex justify-end gap-2">
+                              <button 
+                                onClick={() => setEditingPersonId(person.id)} 
+                                title="編輯公文數據"
+                                className="text-purple-400 hover:text-purple-300 hover:bg-purple-900/30 p-2 rounded-lg transition-all border border-transparent hover:border-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.1)]"
+                              >
+                                <FileSpreadsheet className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleEditNode(person)} 
+                                title="編輯人員節點"
+                                className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-900/30 p-2 rounded-lg transition-all border border-transparent hover:border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.1)]"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={() => handleToggleStatus(person.id)} 
+                                title={isOnline ? "設為非現職" : "設為現職"}
+                                className={`p-2 rounded-lg transition-all border border-transparent ${isOnline ? 'text-yellow-500 hover:bg-yellow-900/20 hover:border-yellow-500/50' : 'text-cyan-500 hover:bg-cyan-900/20 hover:border-cyan-500/50'}`}
+                              >
+                                {isOnline ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
+                              </button>
+                              <button 
+                                onClick={() => handleDeletePerson(person.id)} 
+                                title="刪除節點"
+                                className="text-red-400/50 hover:text-red-400 hover:bg-red-900/20 p-2 rounded-lg transition-all border border-transparent hover:border-red-500/50"
+                              >
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                   <div className="p-8 text-center text-slate-500 font-mono text-sm">NO_RECORDS // 該節點尚無數據</div>
-                )}
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const PersonnelManager = () => {
-    const [newPerson, setNewPerson] = useState({ name: '', district: '', group: GROUP_OPTIONS[0], isActive: true });
-    const [activeGroupTab, setActiveGroupTab] = useState(GROUP_OPTIONS[0]);
-    const [editingLeaderGroup, setEditingLeaderGroup] = useState(null);
-    const [tempLeaderName, setTempLeaderName] = useState('');
-
-    const [editingNodeId, setEditingNodeId] = useState(null);
-
-    const handleUpsertPerson = (e) => {
-      e.preventDefault();
-      if (!newPerson.name || !newPerson.district || !newPerson.group) {
-        alert('ERR_MISSING_DATA: 請填寫完整參數'); return;
-      }
-      
-      if (editingNodeId) {
-        setPeople(people.map(p => p.id === editingNodeId ? { ...p, ...newPerson } : p));
-        setEditingNodeId(null);
-      } else {
-        const newId = 'p' + Date.now();
-        setPeople([...people, { id: newId, ...newPerson }]);
-      }
-      setNewPerson({ name: '', district: '', group: activeGroupTab, isActive: true });
-    };
-
-    const handleEditNode = (person) => {
-      setEditingNodeId(person.id);
-      setNewPerson({ name: person.name, district: person.district, group: person.group, isActive: person.isActive !== false });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    const handleCancelEdit = () => {
-      setEditingNodeId(null);
-      setNewPerson({ name: '', district: '', group: activeGroupTab, isActive: true });
-    };
-
-    const handleDeletePerson = (id) => {
-      if (window.confirm('WARNING: 確定要註銷此人員節點嗎？(歷史軌跡將轉為未知)')) {
-        setPeople(people.filter(p => p.id !== id));
-      }
-    };
-
-    const handleToggleStatus = (id) => {
-      setPeople(people.map(p => {
-        if (p.id === id) return { ...p, isActive: p.isActive === false ? true : false };
-        return p;
-      }));
-    };
-
-    const groupedPeople = GROUP_OPTIONS.reduce((acc, groupName) => {
-      acc[groupName] = people.filter(p => p.group === groupName);
-      return acc;
-    }, {});
-    
-    const otherGroups = [...new Set(people.filter(p => !GROUP_OPTIONS.includes(p.group)).map(p => p.group))];
-    otherGroups.forEach(groupName => {
-      groupedPeople[groupName] = people.filter(p => p.group === groupName);
-    });
-
-    const allDisplayGroups = [...GROUP_OPTIONS, ...otherGroups].filter(g => groupedPeople[g] && groupedPeople[g].length > 0);
-
-    useEffect(() => {
-      if (allDisplayGroups.length > 0 && !allDisplayGroups.includes(activeGroupTab)) {
-        setActiveGroupTab(allDisplayGroups[0]);
-      }
-    }, [people]);
-
-    const currentList = (groupedPeople[activeGroupTab] || []).sort((a, b) => {
-      const aActive = a.isActive !== false;
-      const bActive = b.isActive !== false;
-      return aActive === bActive ? 0 : aActive ? -1 : 1;
-    });
-
-    const handleSaveLeader = () => {
-      setGroupLeaders(prev => ({ ...prev, [activeGroupTab]: tempLeaderName }));
-      setEditingLeaderGroup(null);
-    };
-
-    return (
-      <div className="space-y-6 animate-in fade-in relative">
-        <div className={glassPanelClass}>
-          <h2 className={`text-sm font-bold tracking-widest mb-6 flex items-center gap-2 ${editingNodeId ? 'text-emerald-300' : 'text-cyan-300'}`}>
-            {editingNodeId ? <Edit2 className="w-5 h-5"/> : <Users className="w-5 h-5"/>}
-            {editingNodeId ? 'EDIT_NODE // 編輯人員節點' : 'INIT_NEW_NODE // 建立人員節點'}
-          </h2>
-          <form onSubmit={handleUpsertPerson} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end relative z-10">
-            <div>
-              <label className={editingNodeId ? labelClass.replace('cyan', 'emerald') : labelClass}>識別碼 (姓名)</label>
-              <input type="text" value={newPerson.name} onChange={e => setNewPerson({...newPerson, name: e.target.value})} className={editingNodeId ? inputClass.replace(/cyan/g, 'emerald') : inputClass} placeholder="INPUT_NAME..." />
-            </div>
-            <div>
-              <label className={editingNodeId ? labelClass.replace('cyan', 'emerald') : labelClass}>隸屬群集 (股別)</label>
-              <select value={newPerson.group} onChange={e => setNewPerson({...newPerson, group: e.target.value})} className={editingNodeId ? inputClass.replace(/cyan/g, 'emerald') : inputClass}>
-                {GROUP_OPTIONS.map(g => <option key={g} value={g} className="bg-[#0f172a]">{g}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={editingNodeId ? labelClass.replace('cyan', 'emerald') : labelClass}>負責扇區 (轄區)</label>
-              <input type="text" value={newPerson.district} onChange={e => setNewPerson({...newPerson, district: e.target.value})} className={editingNodeId ? inputClass.replace(/cyan/g, 'emerald') : inputClass} placeholder="INPUT_SECTOR..." />
-            </div>
-            <div>
-              <label className={editingNodeId ? labelClass.replace('cyan', 'emerald') : labelClass}>節點狀態 (現/離職)</label>
-              <select value={newPerson.isActive} onChange={e => setNewPerson({...newPerson, isActive: e.target.value === 'true'})} className={editingNodeId ? inputClass.replace(/cyan/g, 'emerald') : inputClass}>
-                <option value={true} className="bg-[#0f172a] text-cyan-400">現職 (ONLINE)</option>
-                <option value={false} className="bg-[#0f172a] text-slate-500">非現職 (OFFLINE)</option>
-              </select>
-            </div>
-            {editingNodeId ? (
-              <div className="flex gap-2">
-                <button type="submit" className={btnCyberClass.replace('bg-cyan-500/10', 'bg-emerald-500/10').replace(/cyan/g, 'emerald')}>
-                  <Save className="w-5 h-5" /> UPDATE
-                </button>
-                <button type="button" onClick={handleCancelEdit} className="bg-red-500/10 border border-red-400 text-red-300 hover:bg-red-400 hover:text-[#040810] px-4 py-2 rounded-lg font-bold transition-all duration-300 flex items-center justify-center">
-                  <X className="w-5 h-5" />
-                </button>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             ) : (
-              <button type="submit" className={btnCyberClass}>
-                <Plus className="w-5 h-5" /> EXECUTE
-              </button>
+              <div className="bg-[#0f172a]/60 p-8 rounded-xl border border-dashed border-slate-700 text-center text-slate-500 font-mono">NO_DATA_FOUND // 尚無節點資料</div>
             )}
-          </form>
-        </div>
+          </div>
+        );
+      };
 
-        {allDisplayGroups.length > 0 ? (
-          <div className="bg-[#0f172a]/60 border border-slate-700/50 rounded-xl overflow-hidden shadow-lg flex flex-col">
-            <div className="flex overflow-x-auto bg-[#040810]/80 border-b border-cyan-500/20 custom-scrollbar">
-              {allDisplayGroups.map(groupName => (
-                <button
-                  key={groupName}
-                  onClick={() => {
-                    setActiveGroupTab(groupName);
-                    setEditingLeaderGroup(null);
-                  }}
-                  className={`px-6 py-4 font-bold tracking-widest text-sm whitespace-nowrap transition-all border-b-2 flex items-center gap-2 ${
-                    activeGroupTab === groupName
-                      ? 'border-cyan-400 text-cyan-300 bg-cyan-900/20'
-                      : 'border-transparent text-slate-500 hover:text-cyan-100 hover:bg-white/5'
-                  }`}
-                >
-                  {groupName}
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded ${activeGroupTab === groupName ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-800 text-slate-400'}`}>
-                    {groupedPeople[groupName].length}
-                  </span>
-                </button>
-              ))}
+      const SettingsManager = () => (
+        <div className="space-y-6 animate-in fade-in max-w-3xl mx-auto">
+          <div className={`${glassPanelClass} text-center !p-10`}>
+            <div className="w-20 h-20 bg-blue-500/10 border-2 border-blue-400 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(59,130,246,0.3)]">
+              <Save className="w-10 h-10" />
             </div>
-
-            <div className="bg-[#0a101f] p-4 flex items-center justify-between border-b border-slate-800/50">
-              <div className="flex items-center gap-3">
-                 <span className="text-slate-500 font-bold tracking-widest text-xs">SECTION_CHIEF // 股長</span>
-                 {editingLeaderGroup === activeGroupTab ? (
-                   <div className="flex items-center gap-2">
-                     <input
-                       type="text"
-                       value={tempLeaderName}
-                       onChange={e => setTempLeaderName(e.target.value)}
-                       className="bg-[#040810] border border-cyan-500/50 text-cyan-100 rounded px-3 py-1 text-sm focus:outline-none focus:border-cyan-300 shadow-[inset_0_0_5px_rgba(6,182,212,0.2)]"
-                       placeholder="輸入股長姓名"
-                       autoFocus
-                     />
-                     <button onClick={handleSaveLeader} className="text-emerald-400 hover:text-emerald-300 p-1 bg-emerald-900/30 rounded border border-emerald-500/30 transition-colors" title="儲存"><Save className="w-4 h-4"/></button>
-                     <button onClick={() => setEditingLeaderGroup(null)} className="text-red-400 hover:text-red-300 p-1 bg-red-900/30 rounded border border-red-500/30 transition-colors" title="取消"><X className="w-4 h-4"/></button>
-                   </div>
-                 ) : (
-                   <div className="flex items-center gap-2 group/leader">
-                     <span className={`font-black text-lg ${groupLeaders[activeGroupTab] ? 'text-cyan-300 drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]' : 'text-slate-600'}`}>
-                       {groupLeaders[activeGroupTab] || '尚未指派'}
-                     </span>
-                     <button 
-                       onClick={() => {
-                         setTempLeaderName(groupLeaders[activeGroupTab] || '');
-                         setEditingLeaderGroup(activeGroupTab);
-                       }} 
-                       className="text-slate-500 hover:text-cyan-400 p-1.5 rounded-lg transition-colors opacity-0 group-hover/leader:opacity-100"
-                       title="編輯股長"
-                     >
-                       <Edit2 className="w-4 h-4" />
-                     </button>
-                   </div>
-                 )}
-              </div>
-            </div>
-
-            <div className="overflow-x-auto min-h-[250px]">
-              <table className="min-w-full divide-y divide-slate-800/50">
-                <thead className="bg-[#0a101f]">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-slate-400 tracking-widest w-1/4">STATUS</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-slate-400 tracking-widest w-1/4">IDENTIFIER</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-slate-400 tracking-widest w-1/4">SECTOR</th>
-                    <th className="px-6 py-3 text-right text-xs font-bold text-slate-400 tracking-widest w-1/4">ACTION</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/50">
-                  {currentList.map(person => {
-                    const isOnline = person.isActive !== false;
-                    return (
-                      <tr key={person.id} className={`transition-all duration-300 ${isOnline ? 'hover:bg-cyan-900/20' : 'opacity-50 grayscale hover:opacity-80 bg-slate-900/30'}`}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          {isOnline ? (
-                             <span className="flex items-center gap-2 text-xs font-mono text-cyan-400">
-                               <span className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_5px_#22d3ee] animate-pulse"></span>
-                               ONLINE
-                             </span>
-                          ) : (
-                             <span className="flex items-center gap-2 text-xs font-mono text-slate-500">
-                               <span className="w-2 h-2 rounded-full bg-slate-500"></span>
-                               OFFLINE
-                             </span>
-                          )}
-                        </td>
-                        <td className={`px-6 py-4 whitespace-nowrap font-medium ${isOnline ? 'text-cyan-50' : 'text-slate-400 line-through decoration-slate-600'}`}>{person.name}</td>
-                        <td className={`px-6 py-4 whitespace-nowrap font-mono text-sm ${isOnline ? 'text-slate-300' : 'text-slate-500'}`}>{person.district}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right flex justify-end gap-2">
-                          <button 
-                            onClick={() => setEditingPersonId(person.id)} 
-                            title="編輯公文數據"
-                            className="text-purple-400 hover:text-purple-300 hover:bg-purple-900/30 p-2 rounded-lg transition-all border border-transparent hover:border-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.1)]"
-                          >
-                            <FileSpreadsheet className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleEditNode(person)} 
-                            title="編輯人員節點"
-                            className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-900/30 p-2 rounded-lg transition-all border border-transparent hover:border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.1)]"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleToggleStatus(person.id)} 
-                            title={isOnline ? "設為非現職" : "設為現職"}
-                            className={`p-2 rounded-lg transition-all border border-transparent ${isOnline ? 'text-yellow-500 hover:bg-yellow-900/20 hover:border-yellow-500/50' : 'text-cyan-500 hover:bg-cyan-900/20 hover:border-cyan-500/50'}`}
-                          >
-                            {isOnline ? <PowerOff className="w-4 h-4" /> : <Power className="w-4 h-4" />}
-                          </button>
-                          <button 
-                            onClick={() => handleDeletePerson(person.id)} 
-                            title="刪除節點"
-                            className="text-red-400/50 hover:text-red-400 hover:bg-red-900/20 p-2 rounded-lg transition-all border border-transparent hover:border-red-500/50"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <h2 className="text-2xl font-black text-white mb-2 tracking-widest">SYSTEM_CORE // 系統資料封裝</h2>
+            <p className="text-slate-400 mb-8 max-w-md mx-auto text-sm">
+              執行資料庫快照與本機備份。請定期匯出 JSON 封裝檔以防記憶體流失。
+            </p>
+            
+            <div className="flex flex-col sm:flex-row justify-center gap-6">
+              <button 
+                onClick={handleExportBackup}
+                className="flex items-center justify-center gap-2 px-6 py-4 bg-blue-600/20 border-2 border-blue-500 text-blue-300 rounded-xl hover:bg-blue-500 hover:text-white transition-all font-bold tracking-widest shadow-[inset_0_0_15px_rgba(59,130,246,0.3)] hover:shadow-[0_0_20px_rgba(59,130,246,0.6)]"
+              >
+                <Download className="w-5 h-5" /> EXPORT_BACKUP
+              </button>
+              
+              <label className="flex items-center justify-center gap-2 px-6 py-4 bg-[#040810] border-2 border-slate-600 text-slate-300 rounded-xl hover:border-blue-400 hover:text-blue-400 cursor-pointer transition-all font-bold tracking-widest shadow-lg">
+                <Upload className="w-5 h-5" /> IMPORT_DATA
+                <input type="file" accept=".json" className="hidden" onChange={handleImportBackup} />
+              </label>
             </div>
           </div>
-        ) : (
-          <div className="bg-[#0f172a]/60 p-8 rounded-xl border border-dashed border-slate-700 text-center text-slate-500 font-mono">NO_DATA_FOUND // 尚無節點資料</div>
-        )}
-      </div>
-    );
-  };
-
-  const SettingsManager = () => (
-    <div className="space-y-6 animate-in fade-in max-w-3xl mx-auto">
-      <div className={`${glassPanelClass} text-center !p-10`}>
-        <div className="w-20 h-20 bg-blue-500/10 border-2 border-blue-400 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(59,130,246,0.3)]">
-          <Save className="w-10 h-10" />
         </div>
-        <h2 className="text-2xl font-black text-white mb-2 tracking-widest">SYSTEM_CORE // 系統資料封裝</h2>
-        <p className="text-slate-400 mb-8 max-w-md mx-auto text-sm">
-          執行資料庫快照與本機備份。請定期匯出 JSON 封裝檔以防記憶體流失。
-        </p>
-        
-        <div className="flex flex-col sm:flex-row justify-center gap-6">
-          <button 
-            onClick={handleExportBackup}
-            className="flex items-center justify-center gap-2 px-6 py-4 bg-blue-600/20 border-2 border-blue-500 text-blue-300 rounded-xl hover:bg-blue-500 hover:text-white transition-all font-bold tracking-widest shadow-[inset_0_0_15px_rgba(59,130,246,0.3)] hover:shadow-[0_0_20px_rgba(59,130,246,0.6)]"
-          >
-            <Download className="w-5 h-5" /> EXPORT_BACKUP
-          </button>
+      );
+
+      const navItemClass = (isActive) => `
+        w-full flex items-center gap-3 px-4 py-3.5 rounded-lg text-left transition-all duration-300 font-bold tracking-wider text-sm
+        ${isActive 
+          ? 'bg-cyan-500/10 text-cyan-300 border-l-4 border-cyan-400 shadow-[inset_20px_0_40px_rgba(34,211,238,0.05)]' 
+          : 'text-slate-400 hover:bg-[#0f172a] hover:text-cyan-100 hover:border-l-4 hover:border-slate-600'}
+      `;
+
+      return (
+        <div className="min-h-screen text-slate-200 flex flex-col md:flex-row font-sans selection:bg-cyan-500/30">
           
-          <label className="flex items-center justify-center gap-2 px-6 py-4 bg-[#040810] border-2 border-slate-600 text-slate-300 rounded-xl hover:border-blue-400 hover:text-blue-400 cursor-pointer transition-all font-bold tracking-widest shadow-lg">
-            <Upload className="w-5 h-5" /> IMPORT_DATA
-            <input type="file" accept=".json" className="hidden" onChange={handleImportBackup} />
-          </label>
-        </div>
-      </div>
-    </div>
-  );
-
-  const navItemClass = (isActive) => `
-    w-full flex items-center gap-3 px-4 py-3.5 rounded-lg text-left transition-all duration-300 font-bold tracking-wider text-sm
-    ${isActive 
-      ? 'bg-cyan-500/10 text-cyan-300 border-l-4 border-cyan-400 shadow-[inset_20px_0_40px_rgba(34,211,238,0.05)]' 
-      : 'text-slate-400 hover:bg-[#0f172a] hover:text-cyan-100 hover:border-l-4 hover:border-slate-600'}
-  `;
-
-  return (
-    <div className="min-h-screen bg-[#070b14] bg-[linear-gradient(to_right,#06b6d408_1px,transparent_1px),linear-gradient(to_bottom,#06b6d408_1px,transparent_1px)] bg-[size:24px_24px] text-slate-200 flex flex-col md:flex-row font-sans selection:bg-cyan-500/30">
-      
-      <aside className="w-full md:w-64 bg-[#040810]/95 backdrop-blur-xl border-r border-cyan-500/20 flex-shrink-0 relative z-20 shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/30 relative">
-               <div className="absolute inset-0 bg-cyan-400/20 blur animate-pulse"></div>
-               <Activity className="w-7 h-7 text-cyan-400 relative z-10" />
+          <aside className="w-full md:w-64 bg-[#040810]/95 backdrop-blur-xl border-r border-cyan-500/20 flex-shrink-0 relative z-20 shadow-[4px_0_24px_rgba(0,0,0,0.5)]">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-cyan-500/10 rounded-lg border border-cyan-500/30 relative">
+                   <div className="absolute inset-0 bg-cyan-400/20 blur animate-pulse"></div>
+                   <Activity className="w-7 h-7 text-cyan-400 relative z-10" />
+                </div>
+                <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500 drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]">
+                  Volume of Documents
+                </h1>
+              </div>
+              <p className="text-cyan-700 font-mono text-xs tracking-widest pl-1">V_10.0 // GITHUB_PAGES</p>
             </div>
-            <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500 drop-shadow-[0_0_8px_rgba(34,211,238,0.4)]">
-              Volume of Documents
-            </h1>
-          </div>
-          <p className="text-cyan-700 font-mono text-xs tracking-widest pl-1">V_10.0 // CLEAN_MAP_UI</p>
-        </div>
-        
-        <nav className="px-4 space-y-2 pb-6 md:pb-0 mt-4">
-          <button onClick={() => setActiveTab('dashboard')} className={navItemClass(activeTab === 'dashboard')}>
-            <LayoutDashboard className="w-5 h-5" /> 視覺矩陣
-          </button>
-          <button onClick={() => setActiveTab('personnel')} className={navItemClass(activeTab === 'personnel')}>
-            <Users className="w-5 h-5" /> 節點管理 (登錄)
-          </button>
-          <button onClick={() => setActiveTab('settings')} className={navItemClass(activeTab === 'settings')}>
-            <Settings className="w-5 h-5" /> 系統維運
-          </button>
-        </nav>
+            
+            <nav className="px-4 space-y-2 pb-6 md:pb-0 mt-4">
+              <button onClick={() => setActiveTab('dashboard')} className={navItemClass(activeTab === 'dashboard')}>
+                <LayoutDashboard className="w-5 h-5" /> 視覺矩陣
+              </button>
+              <button onClick={() => setActiveTab('personnel')} className={navItemClass(activeTab === 'personnel')}>
+                <Users className="w-5 h-5" /> 節點管理 (登錄)
+              </button>
+              <button onClick={() => setActiveTab('settings')} className={navItemClass(activeTab === 'settings')}>
+                <Settings className="w-5 h-5" /> 系統維運
+              </button>
+            </nav>
 
-        <div className="absolute bottom-4 left-4 right-4 border-t border-slate-800 pt-4 flex flex-col gap-2">
-           <div className="h-1 w-full bg-slate-800 rounded overflow-hidden">
-             <div className="h-full bg-cyan-500/50 w-2/3 animate-pulse"></div>
-           </div>
-           <div className="text-[10px] text-slate-500 font-mono flex justify-between">
-             <span>SYS.STATUS</span>
-             <span className="text-cyan-500">ONLINE</span>
-           </div>
-        </div>
-      </aside>
+            <div className="absolute bottom-4 left-4 right-4 border-t border-slate-800 pt-4 flex flex-col gap-2">
+               <div className="h-1 w-full bg-slate-800 rounded overflow-hidden">
+                 <div className="h-full bg-cyan-500/50 w-2/3 animate-pulse"></div>
+               </div>
+               <div className="text-[10px] text-slate-500 font-mono flex justify-between">
+                 <span>SYS.STATUS</span>
+                 <span className="text-cyan-500">ONLINE</span>
+               </div>
+            </div>
+          </aside>
 
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto relative z-10">
-        <div className="max-w-7xl mx-auto">
-          {activeTab === 'dashboard' && renderDashboard()}
-          {activeTab === 'personnel' && <PersonnelManager />}
-          {activeTab === 'settings' && <SettingsManager />}
-        </div>
-      </main>
+          <main className="flex-1 p-4 md:p-8 overflow-y-auto relative z-10">
+            <div className="max-w-7xl mx-auto">
+              {activeTab === 'dashboard' && renderDashboard()}
+              {activeTab === 'personnel' && <PersonnelManager />}
+              {activeTab === 'settings' && <SettingsManager />}
+            </div>
+          </main>
 
-      {editingPersonId && (
-        <PersonDetailModal 
-          personId={editingPersonId} 
-          onClose={() => setEditingPersonId(null)} 
-        />
-      )}
-    </div>
-  );
-}
+          {editingPersonId && (
+            <PersonDetailModal 
+              personId={editingPersonId} 
+              onClose={() => setEditingPersonId(null)} 
+            />
+          )}
+        </div>
+      );
+    }
+
+    const root = createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
