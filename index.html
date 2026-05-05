@@ -71,7 +71,7 @@
       LayoutDashboard, Users, Settings, Download, Upload, 
       Plus, Trash2, Camera, TrendingUp, FileText, Activity, Save, Database,
       Terminal, Power, PowerOff, Map, Edit2, X, Clock, FileSpreadsheet,
-      Cloud, UploadCloud, DownloadCloud, AlertCircle, ExternalLink, ShieldCheck, RefreshCw
+      Cloud, UploadCloud, DownloadCloud, AlertCircle, ExternalLink, ShieldCheck, RefreshCw, Trophy
     } from 'lucide-react';
 
     // Firebase 核心模組
@@ -96,24 +96,26 @@
 
     // --- 初始模擬資料 ---
     const GROUP_OPTIONS = ['桃園股', '北區股', '中區股', '南區股', '交控中心'];
+    const DISTRICT_OPTIONS = ['桃園區', '中壢區', '平鎮區', '八德區', '楊梅區', '蘆竹區', '龜山區', '龍潭區', '大溪區', '大園區', '觀音區', '新屋區', '復興區', '未指派'];
 
+    // 將行政區正規化，以便完美匹配地圖
     const initialPeople = [
-      { id: 'p1', name: '坤能', district: '桃園(一)', group: '桃園股', isActive: true },
-      { id: 'p2', name: '子豪', district: '桃園(二)', group: '桃園股', isActive: true },
-      { id: 'p3', name: '宗彬', district: '桃園(三)', group: '桃園股', isActive: true },
-      { id: 'p4', name: '鈺盛', district: '龜山(一)', group: '北區股', isActive: true },
-      { id: 'p5', name: '騰科', district: '龜山(二)', group: '北區股', isActive: true },
-      { id: 'p6', name: '瑞華', district: '大園觀音', group: '中區股', isActive: true },
-      { id: 'p7', name: '政佑', district: '中壢(一)', group: '中區股', isActive: true },
-      { id: 'p8', name: '予謙', district: '平鎮', group: '南區股', isActive: true },
-      { id: 'p9', name: '禮安', district: '平鎮', group: '南區股', isActive: true },
-      { id: 'p10', name: '信文', district: '交控專案', group: '交控中心', isActive: true },
-      { id: 'p12', name: '冠德', district: '桃園(三)', group: '桃園股', isActive: true },
-      { id: 'p13', name: '秉弦', district: '蘆竹(一)', group: '北區股', isActive: true },
-      { id: 'p14', name: '柏孜', district: '八德(二)', group: '中區股', isActive: true },
-      { id: 'p15', name: '小萱', district: '中壢(一)', group: '中區股', isActive: true },
-      { id: 'p16', name: '淑垣', district: '道安綜合', group: '中區股', isActive: true },
-      { id: 'p20', name: '雲蓉', district: '八德(一)', group: '中區股', isActive: true },
+      { id: 'p1', name: '坤能', district: '桃園區', group: '桃園股', isActive: true },
+      { id: 'p2', name: '子豪', district: '桃園區', group: '桃園股', isActive: true },
+      { id: 'p3', name: '宗彬', district: '桃園區', group: '桃園股', isActive: true },
+      { id: 'p4', name: '鈺盛', district: '龜山區', group: '北區股', isActive: true },
+      { id: 'p5', name: '騰科', district: '龜山區', group: '北區股', isActive: true },
+      { id: 'p6', name: '瑞華', district: '大園區', group: '中區股', isActive: true },
+      { id: 'p7', name: '政佑', district: '中壢區', group: '中區股', isActive: true },
+      { id: 'p8', name: '予謙', district: '平鎮區', group: '南區股', isActive: true },
+      { id: 'p9', name: '禮安', district: '平鎮區', group: '南區股', isActive: true },
+      { id: 'p10', name: '信文', district: '未指派', group: '交控中心', isActive: true },
+      { id: 'p12', name: '冠德', district: '桃園區', group: '桃園股', isActive: true },
+      { id: 'p13', name: '秉弦', district: '蘆竹區', group: '北區股', isActive: true },
+      { id: 'p14', name: '柏孜', district: '八德區', group: '中區股', isActive: true },
+      { id: 'p15', name: '小萱', district: '中壢區', group: '中區股', isActive: true },
+      { id: 'p16', name: '淑垣', district: '未指派', group: '中區股', isActive: true },
+      { id: 'p20', name: '雲蓉', district: '八德區', group: '中區股', isActive: true },
     ];
 
     const ADMIN_DISTRICTS = [
@@ -139,6 +141,7 @@
       const [groupLeaders, setGroupLeaders] = useState({});
       const [filterYear, setFilterYear] = useState('All');
       const [groupBy, setGroupBy] = useState('person');
+      const [leaderboardView, setLeaderboardView] = useState('year'); // 新增：控制排行榜顯示維度
       const [editingPersonId, setEditingPersonId] = useState(null);
       const [sysMsg, setSysMsg] = useState("");
       const [user, setUser] = useState(null);
@@ -191,7 +194,7 @@
 
           let hasCloudData = false;
           try {
-             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dashboard', 'main');
+             const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dashboard', 'main_v9');
              const docSnap = await getDoc(docRef);
              
              if (docSnap.exists()) {
@@ -213,30 +216,27 @@
              }
           }
 
-          // 本地資料或初始化資料
+          // 本地資料或初始化資料 (升級至 v9 確保清除舊版的快取)
           if (!hasCloudData) {
-             const savedPeople = localStorage.getItem('doc_dash_people_v7');
-             const savedRecords = localStorage.getItem('doc_dash_records_v7');
-             const savedLeaders = localStorage.getItem('doc_dash_leaders_v7');
+             const savedPeople = localStorage.getItem('doc_dash_people_v9');
+             const savedRecords = localStorage.getItem('doc_dash_records_v9');
+             const savedLeaders = localStorage.getItem('doc_dash_leaders_v9');
              if (savedPeople && savedRecords) {
                setPeople(JSON.parse(savedPeople));
                setRecords(JSON.parse(savedRecords));
                if (savedLeaders) setGroupLeaders(JSON.parse(savedLeaders));
              } else {
                setPeople(initialPeople);
+               
+               // 新版：只產生 113, 114 兩年的模擬數據
                const initialData = [];
-               const years = ['113', '114', '115'];
+               const years = ['113', '114'];
                let idCounter = 1;
-               const hardcoded11503 = { '冠德': 190, '子豪': 170, '予謙': 154, '秉弦': 118, '柏孜': 112, '小萱': 109, '瑞華': 105, '淑垣': 100, '騰科': 89, '雲蓉': 63 };
-               const hardcoded11504 = { '子豪': 145, '秉弦': 142, '冠德': 128, '小萱': 116, '予謙': 101, '淑垣': 95, '瑞華': 93, '柏孜': 88, '騰科': 77, '雲蓉': 72 };
                years.forEach(year => {
                  for (let month = 1; month <= 12; month++) {
-                   if (year === '115' && month > 5) break;
                    initialPeople.forEach(person => {
-                     let volume = 0;
-                     if (year === '115' && month === 3) volume = hardcoded11503[person.name] || 0;
-                     else if (year === '115' && month === 4) volume = hardcoded11504[person.name] || 0;
-                     else volume = Math.floor(Math.random() * 60) + 40;
+                     const base = Math.floor(Math.random() * 60) + 40; 
+                     const volume = base + Math.floor(Math.random() * 20);
                      initialData.push({ id: `r${idCounter++}`, year, month: month.toString(), personId: person.id, volume });
                    });
                  }
@@ -258,14 +258,14 @@
       useEffect(() => {
         if (!isInitialLoadDone) return;
 
-        localStorage.setItem('doc_dash_people_v7', JSON.stringify(people));
-        localStorage.setItem('doc_dash_records_v7', JSON.stringify(records));
-        localStorage.setItem('doc_dash_leaders_v7', JSON.stringify(groupLeaders));
+        localStorage.setItem('doc_dash_people_v9', JSON.stringify(people));
+        localStorage.setItem('doc_dash_records_v9', JSON.stringify(records));
+        localStorage.setItem('doc_dash_leaders_v9', JSON.stringify(groupLeaders));
 
         updateSyncStatus("SAVING...", "text-yellow-400");
         const timer = setTimeout(async () => {
            try {
-               const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dashboard', 'main');
+               const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dashboard', 'main_v9');
                await setDoc(docRef, {
                   people, records, groupLeaders,
                   lastUpdated: new Date().toISOString()
@@ -349,7 +349,7 @@
         if (!user) return showMsg("⚠ 操作遭拒：尚未取得雲端授權金鑰。");
         try {
            showMsg("⏳ 正在同步至雲端...");
-           const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dashboard', 'main');
+           const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dashboard', 'main_v9');
            await setDoc(docRef, {
               people, records, groupLeaders,
               lastUpdated: new Date().toISOString(),
@@ -365,7 +365,7 @@
         if (!user) return showMsg("⚠ 操作遭拒：尚未取得雲端授權金鑰。");
         try {
            showMsg("⏳ 正在擷取雲端數據...");
-           const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dashboard', 'main');
+           const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dashboard', 'main_v9');
            const docSnap = await getDoc(docRef);
            if (docSnap.exists()) {
                const data = docSnap.data();
@@ -381,6 +381,7 @@
         }
       };
 
+      // 資料運算與排行榜邏輯
       const dashboardData = useMemo(() => {
         let filtered = records;
         if (filterYear !== 'All') filtered = records.filter(r => r.year === filterYear);
@@ -389,11 +390,25 @@
         const monthlyAvg = Math.round(totalVolume / monthsCount);
 
         const trendMap = {};
+        const yearlyMap = {};
+        const monthlyMap = {};
+
         filtered.forEach(r => {
+          // 趨勢圖資料
           const label = filterYear === 'All' ? `${r.year}年${r.month}月` : `${r.month}月`;
           const sortKey = filterYear === 'All' ? `${r.year}-${r.month.padStart(2, '0')}` : r.month.padStart(2, '0');
           if (!trendMap[sortKey]) trendMap[sortKey] = { name: label, '總件數': 0 };
           trendMap[sortKey]['總件數'] += r.volume;
+
+          // 排行榜資料彙整
+          if (!yearlyMap[r.year]) yearlyMap[r.year] = {};
+          if (!yearlyMap[r.year][r.personId]) yearlyMap[r.year][r.personId] = 0;
+          yearlyMap[r.year][r.personId] += r.volume;
+
+          const mKey = `${r.year}-${r.month.padStart(2, '0')}`;
+          if (!monthlyMap[mKey]) monthlyMap[mKey] = {};
+          if (!monthlyMap[mKey][r.personId]) monthlyMap[mKey][r.personId] = 0;
+          monthlyMap[mKey][r.personId] += r.volume;
         });
 
         const breakdownMap = {};
@@ -408,7 +423,8 @@
         ADMIN_DISTRICTS.forEach(d => mapVolumes[d.id] = 0);
         filtered.forEach(r => {
           const person = getPerson(r.personId);
-          const matched = ADMIN_DISTRICTS.filter(d => (person.district || '').includes(d.id));
+          const distStr = person.district || '';
+          const matched = ADMIN_DISTRICTS.filter(d => distStr.includes(d.id));
           if (matched.length > 0) {
             const splitVol = r.volume / matched.length;
             matched.forEach(d => { mapVolumes[d.id] += splitVol; });
@@ -419,11 +435,26 @@
         let maxMapVol = -1;
         ADMIN_DISTRICTS.forEach(d => { if(mapVolumes[d.id] > maxMapVol) { maxMapVol = mapVolumes[d.id]; maxMapId = d.id; }});
 
+        // 排行榜 Top 3 提取器
+        const formatTop3 = (dataMap) => {
+          return Object.entries(dataMap).map(([period, pVols]) => {
+            const top3 = Object.entries(pVols)
+              .map(([pid, vol]) => ({ person: getPerson(pid), vol }))
+              .sort((a,b) => b.vol - a.vol)
+              .slice(0, 3);
+            return { period, top3 };
+          }).sort((a,b) => b.period.localeCompare(a.period));
+        };
+
         return { 
           totalVolume, monthlyAvg, 
           trendChartData: Object.keys(trendMap).sort().map(k => trendMap[k]), 
           breakdownChartData: Object.values(breakdownMap).sort((a,b) => b.件數 - a.件數), 
-          mapVolumes, maxMapId 
+          mapVolumes, maxMapId,
+          leaderboard: {
+             yearly: formatTop3(yearlyMap),
+             monthly: formatTop3(monthlyMap)
+          }
         };
       }, [records, filterYear, groupBy, people]);
 
@@ -457,7 +488,7 @@
                 </div>
                 <h1 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-br from-cyan-200 to-blue-500 leading-tight">Volume of Documents</h1>
               </div>
-              <p className="text-cyan-800 font-mono text-[9px] tracking-[0.3em] uppercase pl-1">Operational Matrix v12.0</p>
+              <p className="text-cyan-800 font-mono text-[9px] tracking-[0.3em] uppercase pl-1">Operational Matrix v13.1</p>
             </div>
             
             <nav className="px-5 space-y-2.5 flex-1">
@@ -536,6 +567,109 @@
                        </ResponsiveContainer>
                      </div>
                   </div>
+
+                  {/* 變更：網格佈局 (原本全寬的分佈矩陣 + 新增的排行榜) */}
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                    
+                    {/* 左側：分佈矩陣 */}
+                    <div className={`${glassPanelClass} flex flex-col h-[500px]`}>
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                        <h3 className="text-xs font-black text-purple-300 tracking-[0.2em] uppercase flex items-center gap-2">
+                          <span className="w-2 h-2 bg-purple-400 rounded-full animate-ping"></span>
+                          Data Distribution
+                        </h3>
+                        <div className="flex items-center gap-3">
+                          <div className="bg-[#040810] border border-slate-700 p-1 rounded-lg inline-flex">
+                            {['person', 'district', 'group', 'year'].map(type => (
+                              <button 
+                                key={type}
+                                onClick={() => {
+                                  setGroupBy(type);
+                                  if (type === 'year') setFilterYear('All'); 
+                                }} 
+                                className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all uppercase ${groupBy === type ? 'bg-purple-600/30 border border-purple-500 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'text-slate-500 hover:text-slate-300'}`}
+                              >
+                                {type === 'person' ? '承辦' : type === 'district' ? '轄區' : type === 'group' ? '股別' : '年度'}
+                              </button>
+                            ))}
+                          </div>
+                          <button onClick={() => exportChartAsPNG('breakdown-chart', 'PublicMatrix_Distribution')} className="p-2 hover:bg-white/5 rounded-lg transition-colors"><Camera className="w-4 h-4 text-slate-500"/></button>
+                        </div>
+                      </div>
+                      <div id="breakdown-chart" className="flex-1 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={dashboardData.breakdownChartData} margin={{ top: 10, right: 30, left: 0, bottom: 20 }}>
+                            <defs>
+                              <linearGradient id="colorPurple" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#c084fc" stopOpacity={0.8}/>
+                                <stop offset="100%" stopColor="#7e22ce" stopOpacity={0.2}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10, fontWeight: 700}} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10, fontWeight: 700}} dx={-10} />
+                            <Tooltip 
+                              cursor={{fill: 'rgba(30, 41, 59, 0.5)'}}
+                              contentStyle={{ backgroundColor: '#020617', border: '1px solid #c084fc', borderRadius: '12px', fontSize: '12px' }}
+                            />
+                            <Bar dataKey="件數" fill="url(#colorPurple)" radius={[6, 6, 0, 0]} barSize={35} animationDuration={1500}/>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* 右側：戰績排行榜 */}
+                    <div className={`${glassPanelClass} flex flex-col h-[500px]`}>
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xs font-black text-yellow-400 tracking-[0.2em] uppercase flex items-center gap-2">
+                          <Trophy className="w-4 h-4" />
+                          Elite Ranking // 排行榜
+                        </h3>
+                        <div className="flex gap-1 bg-[#040810] p-1 rounded-lg border border-slate-700">
+                          <button onClick={() => setLeaderboardView('year')} className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${leaderboardView === 'year' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-500 hover:text-slate-300'}`}>年度</button>
+                          <button onClick={() => setLeaderboardView('month')} className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${leaderboardView === 'month' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-500 hover:text-slate-300'}`}>月份</button>
+                        </div>
+                      </div>
+                      
+                      <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-5">
+                        {(leaderboardView === 'year' ? dashboardData.leaderboard.yearly : dashboardData.leaderboard.monthly).map(item => (
+                          <div key={item.period} className="bg-[#020617]/50 rounded-2xl p-5 border border-slate-800/50 relative overflow-hidden group">
+                             <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none transition-all group-hover:bg-yellow-500/10"></div>
+                             <div className="text-[10px] font-black text-slate-500 mb-4 tracking-widest border-b border-slate-800/50 pb-2 uppercase">
+                               {leaderboardView === 'year' ? `[ ${item.period} 年度菁英 ]` : `[ ${item.period.replace('-', ' 年 ')} 月份榜單 ]`}
+                             </div>
+                             <div className="space-y-3 relative z-10">
+                               {item.top3.map((rank, idx) => {
+                                  const colors = ['text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]', 'text-slate-300', 'text-amber-600'];
+                                  const bgColors = ['bg-yellow-500/10 border-yellow-500/30', 'bg-slate-400/10 border-slate-400/30', 'bg-amber-600/10 border-amber-600/30'];
+                                  return (
+                                    <div key={rank.person.id} className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 shadow-lg shadow-black/20 ${bgColors[idx]}`}>
+                                       <div className="flex items-center gap-4">
+                                         <div className={`text-xl font-black italic w-6 text-center ${colors[idx]}`}>#{idx+1}</div>
+                                         <div>
+                                           <div className="font-black text-cyan-50 text-sm tracking-wide">{rank.person.name}</div>
+                                           <div className="text-[9px] text-slate-500 font-mono mt-0.5 uppercase tracking-widest">[{rank.person.group}]</div>
+                                         </div>
+                                       </div>
+                                       <div className={`font-black tracking-tighter text-xl ${colors[idx]}`}>
+                                         {rank.vol.toLocaleString()} <span className="text-[10px] opacity-70 font-mono tracking-normal ml-0.5">件</span>
+                                       </div>
+                                    </div>
+                                  )
+                               })}
+                               {item.top3.length === 0 && <div className="text-xs text-slate-600 text-center py-4 font-mono tracking-widest uppercase">No_Data_Found</div>}
+                             </div>
+                          </div>
+                        ))}
+                        {(leaderboardView === 'year' ? dashboardData.leaderboard.yearly : dashboardData.leaderboard.monthly).length === 0 && (
+                           <div className="flex items-center justify-center h-full min-h-[200px] text-slate-600 text-sm font-mono tracking-widest">
+                              AWAITING_DATA_STREAM...
+                           </div>
+                        )}
+                      </div>
+                    </div>
+
+                  </div>
                 </div>
               )}
 
@@ -588,9 +722,10 @@
                  <PersonnelManager 
                     people={people} setPeople={setPeople} setEditingPersonId={setEditingPersonId} 
                     groupLeaders={groupLeaders} setGroupLeaders={setGroupLeaders} 
-                    GROUP_OPTIONS={GROUP_OPTIONS} 
+                    GROUP_OPTIONS={GROUP_OPTIONS} DISTRICT_OPTIONS={DISTRICT_OPTIONS}
                     glassPanelClass={glassPanelClass} inputClass={inputClass} labelClass={labelClass} btnCyberClass={btnCyberClass} 
                     showMsg={showMsg} confirmAction={confirmAction}
+                    records={records} setRecords={setRecords}
                  />
               )}
             </div>
@@ -625,8 +760,8 @@
     }
 
     // --- PersonnelManager 子組件 ---
-    const PersonnelManager = ({ people, setPeople, setEditingPersonId, groupLeaders, setGroupLeaders, GROUP_OPTIONS, glassPanelClass, inputClass, labelClass, btnCyberClass, showMsg, confirmAction }) => {
-      const [newPerson, setNewPerson] = useState({ name: '', district: '', group: GROUP_OPTIONS[0], isActive: true });
+    const PersonnelManager = ({ people, setPeople, setEditingPersonId, groupLeaders, setGroupLeaders, GROUP_OPTIONS, DISTRICT_OPTIONS, glassPanelClass, inputClass, labelClass, btnCyberClass, showMsg, confirmAction, records, setRecords }) => {
+      const [newPerson, setNewPerson] = useState({ name: '', district: DISTRICT_OPTIONS[0], group: GROUP_OPTIONS[0], isActive: true });
       const [activeGroupTab, setActiveGroupTab] = useState(GROUP_OPTIONS[0]);
       const [editingNodeId, setEditingNodeId] = useState(null);
       const [editingLeaderGroup, setEditingLeaderGroup] = useState(null);
@@ -643,12 +778,12 @@
           setPeople([...people, { id: 'p' + Date.now(), ...newPerson }]);
           showMsg("已成功建立新的人員節點。");
         }
-        setNewPerson({ name: '', district: '', group: activeGroupTab, isActive: true });
+        setNewPerson({ name: '', district: DISTRICT_OPTIONS[0], group: activeGroupTab, isActive: true });
       };
 
       const handleEditNode = (p) => {
         setEditingNodeId(p.id);
-        setNewPerson({ name: p.name, district: p.district, group: p.group, isActive: p.isActive !== false });
+        setNewPerson({ name: p.name, district: p.district || DISTRICT_OPTIONS[0], group: p.group, isActive: p.isActive !== false });
         window.scrollTo({ top: 0, behavior: 'smooth' });
       };
 
@@ -661,10 +796,15 @@
             <form onSubmit={handleUpsertPerson} className="grid grid-cols-1 md:grid-cols-5 gap-6 items-end relative z-10">
               <div><label className={labelClass}>識別碼 (姓名)</label><input type="text" value={newPerson.name} onChange={e => setNewPerson({...newPerson, name: e.target.value})} className={inputClass} placeholder="ID_IDENTIFIER"/></div>
               <div><label className={labelClass}>隸屬群集 (股別)</label><select value={newPerson.group} onChange={e => setNewPerson({...newPerson, group: e.target.value})} className={inputClass}>{GROUP_OPTIONS.map(g => <option key={g} value={g} className="bg-[#0f172a]">{g}</option>)}</select></div>
-              <div><label className={labelClass}>負責扇區 (轄區)</label><input type="text" value={newPerson.district} onChange={e => setNewPerson({...newPerson, district: e.target.value})} className={inputClass} placeholder="SECTOR_LOC"/></div>
+              <div>
+                <label className={labelClass}>負責扇區 (轄區)</label>
+                <select value={newPerson.district} onChange={e => setNewPerson({...newPerson, district: e.target.value})} className={inputClass}>
+                  {DISTRICT_OPTIONS.map(d => <option key={d} value={d} className="bg-[#0f172a]">{d}</option>)}
+                </select>
+              </div>
               <div className="flex gap-2">
                 <button type="submit" className={`${btnCyberClass} flex-1 uppercase`}>{editingNodeId ? 'Update' : 'Execute'}</button>
-                {editingNodeId && <button type="button" onClick={() => { setEditingNodeId(null); setNewPerson({ name: '', district: '', group: activeGroupTab, isActive: true }); }} className="bg-red-500/10 border border-red-500/50 p-2 rounded-lg text-red-500 transition-all"><X className="w-5 h-5"/></button>}
+                {editingNodeId && <button type="button" onClick={() => { setEditingNodeId(null); setNewPerson({ name: '', district: DISTRICT_OPTIONS[0], group: activeGroupTab, isActive: true }); }} className="bg-red-500/10 border border-red-500/50 p-2 rounded-lg text-red-500 transition-all"><X className="w-5 h-5"/></button>}
               </div>
             </form>
           </div>
@@ -692,7 +832,11 @@
                      <td className="px-8 py-5 text-right flex justify-end gap-2.5">
                        <button onClick={() => setEditingPersonId(p.id)} className="p-2.5 bg-purple-500/10 rounded-xl text-purple-400 hover:bg-purple-500/20"><FileSpreadsheet className="w-4 h-4"/></button>
                        <button onClick={() => handleEditNode(p)} className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-400 hover:bg-emerald-500/20"><Edit2 className="w-4 h-4"/></button>
-                       <button onClick={() => confirmAction('確定移除此節點？這將從名單中刪除。', () => { setPeople(people.filter(x => x.id !== p.id)); showMsg('節點已移除'); })} className="p-2.5 bg-red-500/10 rounded-xl text-red-400 hover:bg-red-500/20"><Trash2 className="w-4 h-4"/></button>
+                       <button onClick={() => confirmAction('確定移除此節點？這將從名單與資料庫中同步刪除該員所有數據。', () => { 
+                         setPeople(people.filter(x => x.id !== p.id)); 
+                         setRecords(records.filter(r => r.personId !== p.id));
+                         showMsg('節點與相關數據已徹底移除'); 
+                       })} className="p-2.5 bg-red-500/10 rounded-xl text-red-400 hover:bg-red-500/20"><Trash2 className="w-4 h-4"/></button>
                      </td>
                    </tr>
                  ))}
@@ -706,7 +850,7 @@
     // --- PersonDetailModal 子組件 ---
     const PersonDetailModal = ({ personId, onClose, records, setRecords, getPerson, showMsg, glassPanelClass, inputClass, labelClass, btnCyberClass, confirmAction }) => {
       const person = getPerson(personId);
-      const [year, setYear] = useState('115');
+      const [year, setYear] = useState('114');
       const [month, setMonth] = useState('1');
       const [vol, setVol] = useState('');
       const pRecs = useMemo(() => records.filter(r => r.personId === personId).sort((a,b) => parseInt(a.year+a.month.padStart(2,'0')) - parseInt(b.year+b.month.padStart(2,'0'))), [records, personId]);
