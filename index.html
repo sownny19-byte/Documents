@@ -76,7 +76,7 @@
 
     // Firebase 核心模組
     import { initializeApp } from 'firebase/app';
-    import { getAuth, signInAnonymously } from 'firebase/auth';
+    import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
     import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
 
     // Firebase 配置設定
@@ -141,11 +141,16 @@
       const [groupBy, setGroupBy] = useState('person');
       const [editingPersonId, setEditingPersonId] = useState(null);
       const [sysMsg, setSysMsg] = useState("");
+      const [user, setUser] = useState(null);
+      const [authError, setAuthError] = useState(false);
       
       const [isInitialLoadDone, setIsInitialLoadDone] = useState(false);
       const [syncStatus, setSyncStatus] = useState("INIT_HANDSHAKE");
       const [syncColor, setSyncColor] = useState("text-yellow-500");
+      
+      const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, message: '', onConfirm: null });
 
+      // UI 樣式常數
       const glassPanelClass = "bg-[#0f172a]/80 backdrop-blur-md border border-cyan-500/30 p-6 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.1)] relative overflow-hidden";
       const inputClass = "w-full bg-[#040810] border border-cyan-500/40 text-cyan-100 placeholder-cyan-800 rounded-lg shadow-[inset_0_0_10px_rgba(6,182,212,0.1)] focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 focus:outline-none transition-all px-3 py-2 text-sm";
       const labelClass = "block text-[10px] font-bold text-cyan-500 tracking-wider mb-1 uppercase opacity-80";
@@ -161,16 +166,27 @@
         setSyncColor(color);
       };
 
-      // 1. 系統啟動：自動從雲端 Firebase 載入資料
+      const confirmAction = (message, onConfirm) => {
+        setConfirmDialog({ isOpen: true, message, onConfirm });
+      };
+
+      // 初始化 Auth 監聽器與匿名登入並載入資料
       useEffect(() => {
         const bootSystem = async () => {
           updateSyncStatus("CONNECTING_CLOUD...", "text-yellow-400");
           
-          // 嘗試匿名登入 (即使失敗也不阻擋讀取)
+          // 嘗試匿名登入
           try {
              await signInAnonymously(auth);
+             setAuthError(false);
           } catch (e) {
-             console.warn("Auth bypass:", e.message);
+             console.error("Firebase Auth 錯誤:", e);
+             if (e.code === 'auth/configuration-not-found') {
+               setAuthError(true);
+               showMsg("⚠ 偵測到配置錯誤：請前往 Firebase 控制台開啟 Anonymous 登入！");
+             } else {
+               showMsg("⚠ 雲端授權失敗：" + e.message);
+             }
           }
 
           let hasCloudData = false;
@@ -190,14 +206,14 @@
           } catch (e) {
              console.error("Cloud Fetch Error:", e);
              if (e.code === 'permission-denied') {
-                 showMsg("⚠ 雲端權限被拒絕！請至 Firebase 控制台設定 Firestore 規則為 allow read, write: if true;");
+                 showMsg("⚠ 雲端權限被拒絕！請至 Firebase 控制台設定 Firestore 規則。");
                  updateSyncStatus("AUTH_REJECTED", "text-rose-500");
              } else {
                  updateSyncStatus("OFFLINE_MODE", "text-rose-400");
              }
           }
 
-          // 如果雲端完全沒資料，再退回尋找本地緩存或產生假資料
+          // 本地資料或初始化資料
           if (!hasCloudData) {
              const savedPeople = localStorage.getItem('doc_dash_people_v7');
              const savedRecords = localStorage.getItem('doc_dash_records_v7');
@@ -208,7 +224,6 @@
                if (savedLeaders) setGroupLeaders(JSON.parse(savedLeaders));
              } else {
                setPeople(initialPeople);
-               // 產生假資料...
                const initialData = [];
                const years = ['113', '114', '115'];
                let idCounter = 1;
@@ -235,18 +250,18 @@
         };
         
         bootSystem();
+        const unsubscribe = onAuthStateChanged(auth, setUser);
+        return () => unsubscribe();
       }, []);
 
-      // 2. 自動背景存檔與雲端上傳 (Auto-Save)
+      // 自動背景存檔與雲端上傳 (Auto-Save)
       useEffect(() => {
-        if (!isInitialLoadDone) return; // 避免一啟動就把空資料蓋掉雲端
+        if (!isInitialLoadDone) return;
 
-        // 存到本地
         localStorage.setItem('doc_dash_people_v7', JSON.stringify(people));
         localStorage.setItem('doc_dash_records_v7', JSON.stringify(records));
         localStorage.setItem('doc_dash_leaders_v7', JSON.stringify(groupLeaders));
 
-        // 存到雲端 (Debounce 延遲 1.5 秒，避免連續輸入時瘋狂發送請求)
         updateSyncStatus("SAVING...", "text-yellow-400");
         const timer = setTimeout(async () => {
            try {
@@ -328,6 +343,42 @@
           }
         };
         reader.readAsText(file);
+      };
+
+      const uploadToCloud = async () => {
+        if (!user) return showMsg("⚠ 操作遭拒：尚未取得雲端授權金鑰。");
+        try {
+           showMsg("⏳ 正在同步至雲端...");
+           const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dashboard', 'main');
+           await setDoc(docRef, {
+              people, records, groupLeaders,
+              lastUpdated: new Date().toISOString(),
+              syncSource: user.uid
+           });
+           showMsg("✅ 雲端同步完成！");
+        } catch (e) {
+           showMsg("❌ 同步失敗：" + e.message);
+        }
+      };
+
+      const downloadFromCloud = async () => {
+        if (!user) return showMsg("⚠ 操作遭拒：尚未取得雲端授權金鑰。");
+        try {
+           showMsg("⏳ 正在擷取雲端數據...");
+           const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'dashboard', 'main');
+           const docSnap = await getDoc(docRef);
+           if (docSnap.exists()) {
+               const data = docSnap.data();
+               if (data.people) setPeople(data.people);
+               if (data.records) setRecords(data.records);
+               if (data.groupLeaders) setGroupLeaders(data.groupLeaders);
+               showMsg("✅ 雲端擷取成功！");
+           } else {
+               showMsg("ℹ 雲端目前尚無儲存資料。");
+           }
+        } catch (e) {
+           showMsg("❌ 擷取失敗：" + e.message);
+        }
       };
 
       const dashboardData = useMemo(() => {
@@ -491,7 +542,7 @@
               {activeTab === 'settings' && (
                 <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                   
-                  {syncStatus === "AUTH_REJECTED" && (
+                  {authError && (
                     <div className="bg-rose-950/20 border-2 border-rose-500/50 p-8 rounded-3xl text-rose-100 flex flex-col md:flex-row items-center md:items-start gap-8 shadow-[0_0_30px_rgba(244,63,94,0.1)]">
                       <div className="p-4 bg-rose-500/20 rounded-2xl shrink-0"><AlertCircle className="w-10 h-10 text-rose-500 animate-pulse" /></div>
                       <div className="flex-1 space-y-4">
@@ -539,7 +590,7 @@
                     groupLeaders={groupLeaders} setGroupLeaders={setGroupLeaders} 
                     GROUP_OPTIONS={GROUP_OPTIONS} 
                     glassPanelClass={glassPanelClass} inputClass={inputClass} labelClass={labelClass} btnCyberClass={btnCyberClass} 
-                    showMsg={showMsg} 
+                    showMsg={showMsg} confirmAction={confirmAction}
                  />
               )}
             </div>
@@ -550,14 +601,31 @@
               personId={editingPersonId} onClose={() => setEditingPersonId(null)} 
               records={records} setRecords={setRecords} getPerson={getPerson} 
               showMsg={showMsg} glassPanelClass={glassPanelClass} inputClass={inputClass} labelClass={labelClass} btnCyberClass={btnCyberClass} 
+              confirmAction={confirmAction}
             />
+          )}
+
+          {/* 自訂確認彈出視窗 */}
+          {confirmDialog.isOpen && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
+              <div className="absolute inset-0 bg-[#020617]/90 backdrop-blur-md" onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}></div>
+              <div className="relative bg-[#0f172a] border border-rose-500/50 rounded-2xl p-8 max-w-sm w-full shadow-[0_0_50px_rgba(244,63,94,0.2)] text-center">
+                <AlertCircle className="w-12 h-12 text-rose-500 mx-auto mb-4 animate-pulse" />
+                <h3 className="text-lg font-black text-rose-100 mb-2">系統操作確認</h3>
+                <p className="text-slate-400 text-sm mb-8">{confirmDialog.message}</p>
+                <div className="flex gap-4">
+                  <button onClick={() => setConfirmDialog({ ...confirmDialog, isOpen: false })} className="flex-1 py-3 bg-slate-800 text-slate-300 rounded-xl font-bold hover:bg-slate-700 transition-all">取消</button>
+                  <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog({ ...confirmDialog, isOpen: false }); }} className="flex-1 py-3 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-500 shadow-lg shadow-rose-500/20 transition-all">確認執行</button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       );
     }
 
     // --- PersonnelManager 子組件 ---
-    const PersonnelManager = ({ people, setPeople, setEditingPersonId, groupLeaders, setGroupLeaders, GROUP_OPTIONS, glassPanelClass, inputClass, labelClass, btnCyberClass, showMsg }) => {
+    const PersonnelManager = ({ people, setPeople, setEditingPersonId, groupLeaders, setGroupLeaders, GROUP_OPTIONS, glassPanelClass, inputClass, labelClass, btnCyberClass, showMsg, confirmAction }) => {
       const [newPerson, setNewPerson] = useState({ name: '', district: '', group: GROUP_OPTIONS[0], isActive: true });
       const [activeGroupTab, setActiveGroupTab] = useState(GROUP_OPTIONS[0]);
       const [editingNodeId, setEditingNodeId] = useState(null);
@@ -611,7 +679,7 @@
              {editingLeaderGroup && (
                <div className="p-6 bg-cyan-950/20 flex gap-4 animate-in slide-in-from-top-4">
                  <input type="text" value={tempLeaderName} onChange={e => setTempLeaderName(e.target.value)} className={`${inputClass} !py-3`} placeholder="Enter Name..."/>
-                 <button onClick={() => { setGroupLeaders({...groupLeaders, [activeGroupTab]: tempLeaderName}); setEditingLeaderGroup(null); showMsg("股長名單已更新。"); }} className="px-6 py-2 bg-emerald-500 text-[#020617] rounded-xl font-black text-xs hover:brightness-110"><Save className="w-5 h-5"/></button>
+                 <button onClick={() => { setGroupLeaders({...groupLeaders, [activeGroupTab]: tempLeaderName}); setEditingLeaderGroup(null); showMsg("股長已更新。"); }} className="px-6 py-2 bg-emerald-500 text-[#020617] rounded-xl font-black text-xs hover:brightness-110"><Save className="w-5 h-5"/></button>
                </div>
              )}
              <table className="min-w-full divide-y divide-slate-800/50">
@@ -624,7 +692,7 @@
                      <td className="px-8 py-5 text-right flex justify-end gap-2.5">
                        <button onClick={() => setEditingPersonId(p.id)} className="p-2.5 bg-purple-500/10 rounded-xl text-purple-400 hover:bg-purple-500/20"><FileSpreadsheet className="w-4 h-4"/></button>
                        <button onClick={() => handleEditNode(p)} className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-400 hover:bg-emerald-500/20"><Edit2 className="w-4 h-4"/></button>
-                       <button onClick={() => { if(window.confirm('確定移除？')) setPeople(people.filter(x => x.id !== p.id)); }} className="p-2.5 bg-red-500/10 rounded-xl text-red-400 hover:bg-red-500/20"><Trash2 className="w-4 h-4"/></button>
+                       <button onClick={() => confirmAction('確定移除此節點？這將從名單中刪除。', () => { setPeople(people.filter(x => x.id !== p.id)); showMsg('節點已移除'); })} className="p-2.5 bg-red-500/10 rounded-xl text-red-400 hover:bg-red-500/20"><Trash2 className="w-4 h-4"/></button>
                      </td>
                    </tr>
                  ))}
@@ -636,7 +704,7 @@
     };
 
     // --- PersonDetailModal 子組件 ---
-    const PersonDetailModal = ({ personId, onClose, records, setRecords, getPerson, showMsg, glassPanelClass, inputClass, labelClass, btnCyberClass }) => {
+    const PersonDetailModal = ({ personId, onClose, records, setRecords, getPerson, showMsg, glassPanelClass, inputClass, labelClass, btnCyberClass, confirmAction }) => {
       const person = getPerson(personId);
       const [year, setYear] = useState('115');
       const [month, setMonth] = useState('1');
@@ -678,7 +746,7 @@
                     <tr key={r.id} className="hover:bg-cyan-500/5">
                       <td className="px-6 py-4 font-mono text-cyan-50">{r.year} 年 {r.month.padStart(2,'0')} 月</td>
                       <td className="px-6 py-4 text-right font-black text-cyan-400 text-lg tabular-nums">{r.volume}</td>
-                      <td className="px-6 py-4 text-right"><button onClick={() => { if(window.confirm('確定抹除？')) setRecords(records.filter(x=>x.id!==r.id)); }} className="p-2 text-red-500/30 hover:text-red-500 transition-all"><Trash2 className="w-4 h-4"/></button></td>
+                      <td className="px-6 py-4 text-right"><button onClick={() => confirmAction('確定抹除此筆紀錄？', () => { setRecords(records.filter(x=>x.id!==r.id)); showMsg('紀錄已抹除'); })} className="p-2 text-red-500/30 hover:text-red-500 transition-all"><Trash2 className="w-4 h-4"/></button></td>
                     </tr>
                   ))}
                 </tbody>
