@@ -142,6 +142,7 @@
       const [filterYear, setFilterYear] = useState('All');
       const [groupBy, setGroupBy] = useState('person');
       const [leaderboardView, setLeaderboardView] = useState('year'); 
+      const [trendPersonId, setTrendPersonId] = useState('All'); // 新增：趨勢圖獨立承辦人篩選
       const [editingPersonId, setEditingPersonId] = useState(null);
       const [sysMsg, setSysMsg] = useState("");
       const [user, setUser] = useState(null);
@@ -390,12 +391,17 @@
         const yearlyMap = {};
         const monthlyMap = {};
 
-        filtered.forEach(r => {
+        // 1. 趨勢圖資料：受年度與「專屬承辦人下拉選單」過濾影響
+        const trendRecords = trendPersonId === 'All' ? filtered : filtered.filter(r => r.personId === trendPersonId);
+        trendRecords.forEach(r => {
           const label = filterYear === 'All' ? `${r.year}年${r.month}月` : `${r.month}月`;
           const sortKey = filterYear === 'All' ? `${r.year}-${r.month.padStart(2, '0')}` : r.month.padStart(2, '0');
           if (!trendMap[sortKey]) trendMap[sortKey] = { name: label, '總件數': 0 };
           trendMap[sortKey]['總件數'] += r.volume;
+        });
 
+        // 2. 一般排行榜與分佈矩陣：僅受年度過濾影響
+        filtered.forEach(r => {
           if (!yearlyMap[r.year]) yearlyMap[r.year] = {};
           if (!yearlyMap[r.year][r.personId]) yearlyMap[r.year][r.personId] = 0;
           yearlyMap[r.year][r.personId] += r.volume;
@@ -404,6 +410,35 @@
           if (!monthlyMap[mKey]) monthlyMap[mKey] = {};
           if (!monthlyMap[mKey][r.personId]) monthlyMap[mKey][r.personId] = 0;
           monthlyMap[mKey][r.personId] += r.volume;
+        });
+
+        // 3. 歷年單年度/單月份最高紀錄：不受年度過濾影響，掃描全庫
+        let maxSingleYear = { personId: null, year: null, volume: 0 };
+        let maxSingleMonth = { personId: null, yearMonth: null, volume: 0 };
+        const allTimeYearMap = {};
+        const allTimeMonthMap = {};
+        
+        records.forEach(r => {
+           if (!allTimeYearMap[r.personId]) allTimeYearMap[r.personId] = {};
+           if (!allTimeYearMap[r.personId][r.year]) allTimeYearMap[r.personId][r.year] = 0;
+           allTimeYearMap[r.personId][r.year] += r.volume;
+
+           const ym = `${r.year}-${r.month.padStart(2, '0')}`;
+           if (!allTimeMonthMap[r.personId]) allTimeMonthMap[r.personId] = {};
+           if (!allTimeMonthMap[r.personId][ym]) allTimeMonthMap[r.personId][ym] = 0;
+           allTimeMonthMap[r.personId][ym] += r.volume;
+        });
+
+        Object.entries(allTimeYearMap).forEach(([pid, yMap]) => {
+           Object.entries(yMap).forEach(([y, vol]) => {
+              if (vol > maxSingleYear.volume) maxSingleYear = { personId: pid, year: y, volume: vol };
+           });
+        });
+
+        Object.entries(allTimeMonthMap).forEach(([pid, mMap]) => {
+           Object.entries(mMap).forEach(([ym, vol]) => {
+              if (vol > maxSingleMonth.volume) maxSingleMonth = { personId: pid, yearMonth: ym, volume: vol };
+           });
         });
 
         const breakdownMap = {};
@@ -448,9 +483,13 @@
           leaderboard: {
              yearly: formatTop3(yearlyMap),
              monthly: formatTop3(monthlyMap)
+          },
+          allTimeRecords: {
+             maxYear: { ...maxSingleYear, person: maxSingleYear.personId ? getPerson(maxSingleYear.personId) : null },
+             maxMonth: { ...maxSingleMonth, person: maxSingleMonth.personId ? getPerson(maxSingleMonth.personId) : null }
           }
         };
-      }, [records, filterYear, groupBy, people]);
+      }, [records, filterYear, groupBy, people, trendPersonId]); // 加入 trendPersonId 依賴
 
       const navItemClass = (isActive) => `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 font-black tracking-widest text-xs ${isActive ? 'bg-cyan-500/20 text-cyan-300 border-l-4 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.15)]' : 'text-slate-500 hover:bg-[#0f172a] hover:text-cyan-100'}`;
 
@@ -545,10 +584,21 @@
 
                   <div className={glassPanelClass}>
                      <div className="flex justify-between items-center mb-8">
-                        <h3 className="text-xs font-black text-cyan-300 flex items-center gap-2 tracking-[0.2em] uppercase"><Activity className="w-4 h-4"/> Volume Trend Matrix</h3>
-                        <button onClick={() => exportChartAsPNG('map-chart', 'PublicMatrix_Map')} className="p-2 hover:bg-white/5 rounded-lg transition-colors"><Camera className="w-4 h-4 text-slate-500"/></button>
+                        <div className="flex items-center gap-4">
+                          <h3 className="text-xs font-black text-cyan-300 flex items-center gap-2 tracking-[0.2em] uppercase"><Activity className="w-4 h-4"/> Volume Trend Matrix</h3>
+                          {/* 新增：承辦人獨立趨勢選單 */}
+                          <select 
+                            value={trendPersonId} 
+                            onChange={(e) => setTrendPersonId(e.target.value)}
+                            className="bg-[#020617] border border-cyan-500/30 text-cyan-400 text-[10px] px-3 py-1.5 rounded-lg focus:outline-none cursor-pointer tracking-widest font-black uppercase"
+                          >
+                            <option value="All">總趨勢 (ALL)</option>
+                            {people.map(p => <option key={p.id} value={p.id}>{p.name} {p.isActive ? '' : '(離)'}</option>)}
+                          </select>
+                        </div>
+                        <button onClick={() => exportChartAsPNG('trend-chart', 'PublicMatrix_Trend')} className="p-2 hover:bg-white/5 rounded-lg transition-colors"><Camera className="w-4 h-4 text-slate-500"/></button>
                      </div>
-                     <div className="h-[350px] w-full">
+                     <div id="trend-chart" className="h-[350px] w-full">
                        <ResponsiveContainer>
                         <AreaChart data={dashboardData.trendChartData}>
                           <defs><linearGradient id="colorCyan" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#22d3ee" stopOpacity={0.4}/><stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/></linearGradient></defs>
@@ -618,40 +668,91 @@
                         <div className="flex gap-1 bg-[#040810] p-1 rounded-lg border border-slate-700">
                           <button onClick={() => setLeaderboardView('year')} className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${leaderboardView === 'year' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-500 hover:text-slate-300'}`}>年度</button>
                           <button onClick={() => setLeaderboardView('month')} className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${leaderboardView === 'month' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-500 hover:text-slate-300'}`}>月份</button>
+                          {/* 新增：歷年最高切換按鈕 */}
+                          <button onClick={() => setLeaderboardView('halloffame')} className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${leaderboardView === 'halloffame' ? 'bg-amber-500/20 text-amber-400' : 'text-slate-500 hover:text-slate-300'}`}>歷年最高</button>
                         </div>
                       </div>
                       
                       <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-5">
-                        {(leaderboardView === 'year' ? dashboardData.leaderboard.yearly : dashboardData.leaderboard.monthly).map(item => (
-                          <div key={item.period} className="bg-[#020617]/50 rounded-2xl p-5 border border-slate-800/50 relative overflow-hidden group">
-                             <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none transition-all group-hover:bg-yellow-500/10"></div>
-                             <div className="text-[10px] font-black text-slate-500 mb-4 tracking-widest border-b border-slate-800/50 pb-2 uppercase">
-                               {leaderboardView === 'year' ? `[ ${item.period} 年度菁英 ]` : `[ ${item.period.replace('-', ' 年 ')} 月份榜單 ]`}
-                             </div>
-                             <div className="space-y-3 relative z-10">
-                               {item.top3.map((rank, idx) => {
-                                  const colors = ['text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]', 'text-slate-300', 'text-amber-600'];
-                                  const bgColors = ['bg-yellow-500/10 border-yellow-500/30', 'bg-slate-400/10 border-slate-400/30', 'bg-amber-600/10 border-amber-600/30'];
-                                  return (
-                                    <div key={rank.person.id} className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 shadow-lg shadow-black/20 ${bgColors[idx]}`}>
-                                       <div className="flex items-center gap-4">
-                                         <div className={`text-xl font-black italic w-6 text-center ${colors[idx]}`}>#{idx+1}</div>
-                                         <div>
-                                           <div className="font-black text-cyan-50 text-sm tracking-wide">{rank.person.name}</div>
-                                           <div className="text-[9px] text-slate-500 font-mono mt-0.5 uppercase tracking-widest">[{rank.person.group}]</div>
-                                         </div>
-                                       </div>
-                                       <div className={`font-black tracking-tighter text-xl ${colors[idx]}`}>
-                                         {rank.vol.toLocaleString()} <span className="text-[10px] opacity-70 font-mono tracking-normal ml-0.5">件</span>
+                        {/* 新增：歷年最高 (名人堂) 視圖渲染 */}
+                        {leaderboardView === 'halloffame' ? (
+                           <div className="space-y-4">
+                              <div className="bg-[#020617]/50 rounded-2xl p-5 border border-amber-500/30 relative overflow-hidden group">
+                                 <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none transition-all group-hover:bg-amber-500/10"></div>
+                                 <div className="text-[10px] font-black text-amber-500 mb-4 tracking-widest border-b border-amber-500/30 pb-2 uppercase">
+                                   [ 歷年單年度最高紀錄 ]
+                                 </div>
+                                 {dashboardData.allTimeRecords.maxYear.volume > 0 ? (
+                                 <div className="flex items-center justify-between p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 relative z-10 hover:scale-[1.02] transition-transform">
+                                    <div className="flex items-center gap-4">
+                                       <Trophy className="w-8 h-8 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+                                       <div>
+                                         <div className="font-black text-cyan-50 text-base">{dashboardData.allTimeRecords.maxYear.person.name}</div>
+                                         <div className="text-[10px] text-amber-500/80 font-mono mt-0.5 uppercase tracking-widest">{dashboardData.allTimeRecords.maxYear.year} 年度</div>
                                        </div>
                                     </div>
-                                  )
-                               })}
-                               {item.top3.length === 0 && <div className="text-xs text-slate-600 text-center py-4 font-mono tracking-widest uppercase">No_Data_Found</div>}
-                             </div>
-                          </div>
-                        ))}
-                        {(leaderboardView === 'year' ? dashboardData.leaderboard.yearly : dashboardData.leaderboard.monthly).length === 0 && (
+                                    <div className="font-black tracking-tighter text-2xl text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
+                                       {dashboardData.allTimeRecords.maxYear.volume.toLocaleString()} <span className="text-xs opacity-70 font-mono tracking-normal ml-0.5">件</span>
+                                    </div>
+                                 </div>
+                                 ) : <div className="text-xs text-slate-600 text-center py-4 font-mono tracking-widest uppercase relative z-10">No_Data</div>}
+                              </div>
+
+                              <div className="bg-[#020617]/50 rounded-2xl p-5 border border-emerald-500/30 relative overflow-hidden group">
+                                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none transition-all group-hover:bg-emerald-500/10"></div>
+                                 <div className="text-[10px] font-black text-emerald-500 mb-4 tracking-widest border-b border-emerald-500/30 pb-2 uppercase">
+                                   [ 歷年單月份最高紀錄 ]
+                                 </div>
+                                 {dashboardData.allTimeRecords.maxMonth.volume > 0 ? (
+                                 <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 relative z-10 hover:scale-[1.02] transition-transform">
+                                    <div className="flex items-center gap-4">
+                                       <Trophy className="w-8 h-8 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                                       <div>
+                                         <div className="font-black text-cyan-50 text-base">{dashboardData.allTimeRecords.maxMonth.person.name}</div>
+                                         <div className="text-[10px] text-emerald-500/80 font-mono mt-0.5 uppercase tracking-widest">{dashboardData.allTimeRecords.maxMonth.yearMonth.replace('-', '年')}月</div>
+                                       </div>
+                                    </div>
+                                    <div className="font-black tracking-tighter text-2xl text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.6)]">
+                                       {dashboardData.allTimeRecords.maxMonth.volume.toLocaleString()} <span className="text-xs opacity-70 font-mono tracking-normal ml-0.5">件</span>
+                                    </div>
+                                 </div>
+                                 ) : <div className="text-xs text-slate-600 text-center py-4 font-mono tracking-widest uppercase relative z-10">No_Data</div>}
+                              </div>
+                           </div>
+                        ) : (
+                          // 年度/月份原有的 mapping 邏輯
+                          (leaderboardView === 'year' ? dashboardData.leaderboard.yearly : dashboardData.leaderboard.monthly).map(item => (
+                            <div key={item.period} className="bg-[#020617]/50 rounded-2xl p-5 border border-slate-800/50 relative overflow-hidden group">
+                               <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none transition-all group-hover:bg-yellow-500/10"></div>
+                               <div className="text-[10px] font-black text-slate-500 mb-4 tracking-widest border-b border-slate-800/50 pb-2 uppercase">
+                                 {leaderboardView === 'year' ? `[ ${item.period} 年度菁英 ]` : `[ ${item.period.replace('-', ' 年 ')} 月份榜單 ]`}
+                               </div>
+                               <div className="space-y-3 relative z-10">
+                                 {item.top3.map((rank, idx) => {
+                                    const colors = ['text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]', 'text-slate-300', 'text-amber-600'];
+                                    const bgColors = ['bg-yellow-500/10 border-yellow-500/30', 'bg-slate-400/10 border-slate-400/30', 'bg-amber-600/10 border-amber-600/30'];
+                                    return (
+                                      <div key={rank.person.id} className={`flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 hover:scale-[1.02] hover:-translate-y-0.5 shadow-lg shadow-black/20 ${bgColors[idx]}`}>
+                                         <div className="flex items-center gap-4">
+                                           <div className={`text-xl font-black italic w-6 text-center ${colors[idx]}`}>#{idx+1}</div>
+                                           <div>
+                                             <div className="font-black text-cyan-50 text-sm tracking-wide">{rank.person.name}</div>
+                                             <div className="text-[9px] text-slate-500 font-mono mt-0.5 uppercase tracking-widest">[{rank.person.group}]</div>
+                                           </div>
+                                         </div>
+                                         <div className={`font-black tracking-tighter text-xl ${colors[idx]}`}>
+                                           {rank.vol.toLocaleString()} <span className="text-[10px] opacity-70 font-mono tracking-normal ml-0.5">件</span>
+                                         </div>
+                                      </div>
+                                    )
+                                 })}
+                                 {item.top3.length === 0 && <div className="text-xs text-slate-600 text-center py-4 font-mono tracking-widest uppercase">No_Data_Found</div>}
+                               </div>
+                            </div>
+                          ))
+                        )}
+                        {/* 無資料處理 */}
+                        {leaderboardView !== 'halloffame' && (leaderboardView === 'year' ? dashboardData.leaderboard.yearly : dashboardData.leaderboard.monthly).length === 0 && (
                            <div className="flex items-center justify-center h-full min-h-[200px] text-slate-600 text-sm font-mono tracking-widest">
                               AWAITING_DATA_STREAM...
                            </div>
