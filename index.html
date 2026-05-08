@@ -142,7 +142,7 @@
       const [filterYear, setFilterYear] = useState('All');
       const [groupBy, setGroupBy] = useState('person');
       const [leaderboardView, setLeaderboardView] = useState('year'); 
-      const [trendPersonId, setTrendPersonId] = useState('All'); // 新增：趨勢圖獨立承辦人篩選
+      const [trendPersonName, setTrendPersonName] = useState('All'); // 變更：以「姓名」作為篩選基準
       const [editingPersonId, setEditingPersonId] = useState(null);
       const [sysMsg, setSysMsg] = useState("");
       const [user, setUser] = useState(null);
@@ -391,8 +391,8 @@
         const yearlyMap = {};
         const monthlyMap = {};
 
-        // 1. 趨勢圖資料：受年度與「專屬承辦人下拉選單」過濾影響
-        const trendRecords = trendPersonId === 'All' ? filtered : filtered.filter(r => r.personId === trendPersonId);
+        // 1. 趨勢圖資料：受年度與「專屬承辦人名字下拉選單」過濾影響
+        const trendRecords = trendPersonName === 'All' ? filtered : filtered.filter(r => getPerson(r.personId).name === trendPersonName);
         trendRecords.forEach(r => {
           const label = filterYear === 'All' ? `${r.year}年${r.month}月` : `${r.month}月`;
           const sortKey = filterYear === 'All' ? `${r.year}-${r.month.padStart(2, '0')}` : r.month.padStart(2, '0');
@@ -489,7 +489,7 @@
              maxMonth: { ...maxSingleMonth, person: maxSingleMonth.personId ? getPerson(maxSingleMonth.personId) : null }
           }
         };
-      }, [records, filterYear, groupBy, people, trendPersonId]); // 加入 trendPersonId 依賴
+      }, [records, filterYear, groupBy, people, trendPersonName]); // 依賴改為 trendPersonName
 
       const navItemClass = (isActive) => `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 font-black tracking-widest text-xs ${isActive ? 'bg-cyan-500/20 text-cyan-300 border-l-4 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.15)]' : 'text-slate-500 hover:bg-[#0f172a] hover:text-cyan-100'}`;
 
@@ -521,7 +521,7 @@
                 </div>
                 <h1 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-br from-cyan-200 to-blue-500 leading-tight">Volume of Documents</h1>
               </div>
-              <p className="text-cyan-800 font-mono text-[9px] tracking-[0.3em] uppercase pl-1">Operational Matrix v13.2</p>
+              <p className="text-cyan-800 font-mono text-[9px] tracking-[0.3em] uppercase pl-1">Operational Matrix v13.3</p>
             </div>
             
             <nav className="px-5 space-y-2.5 flex-1">
@@ -586,14 +586,14 @@
                      <div className="flex justify-between items-center mb-8">
                         <div className="flex items-center gap-4">
                           <h3 className="text-xs font-black text-cyan-300 flex items-center gap-2 tracking-[0.2em] uppercase"><Activity className="w-4 h-4"/> Volume Trend Matrix</h3>
-                          {/* 新增：承辦人獨立趨勢選單 */}
+                          {/* 變更：承辦人名稱獨立趨勢選單 */}
                           <select 
-                            value={trendPersonId} 
-                            onChange={(e) => setTrendPersonId(e.target.value)}
+                            value={trendPersonName} 
+                            onChange={(e) => setTrendPersonName(e.target.value)}
                             className="bg-[#020617] border border-cyan-500/30 text-cyan-400 text-[10px] px-3 py-1.5 rounded-lg focus:outline-none cursor-pointer tracking-widest font-black uppercase"
                           >
                             <option value="All">總趨勢 (ALL)</option>
-                            {people.map(p => <option key={p.id} value={p.id}>{p.name} {p.isActive ? '' : '(離)'}</option>)}
+                            {Array.from(new Set(people.map(p => p.name))).map(name => <option key={name} value={name}>{name}</option>)}
                           </select>
                         </div>
                         <button onClick={() => exportChartAsPNG('trend-chart', 'PublicMatrix_Trend')} className="p-2 hover:bg-white/5 rounded-lg transition-colors"><Camera className="w-4 h-4 text-slate-500"/></button>
@@ -668,13 +668,11 @@
                         <div className="flex gap-1 bg-[#040810] p-1 rounded-lg border border-slate-700">
                           <button onClick={() => setLeaderboardView('year')} className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${leaderboardView === 'year' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-500 hover:text-slate-300'}`}>年度</button>
                           <button onClick={() => setLeaderboardView('month')} className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${leaderboardView === 'month' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-500 hover:text-slate-300'}`}>月份</button>
-                          {/* 新增：歷年最高切換按鈕 */}
                           <button onClick={() => setLeaderboardView('halloffame')} className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${leaderboardView === 'halloffame' ? 'bg-amber-500/20 text-amber-400' : 'text-slate-500 hover:text-slate-300'}`}>歷年最高</button>
                         </div>
                       </div>
                       
                       <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-5">
-                        {/* 新增：歷年最高 (名人堂) 視圖渲染 */}
                         {leaderboardView === 'halloffame' ? (
                            <div className="space-y-4">
                               <div className="bg-[#020617]/50 rounded-2xl p-5 border border-amber-500/30 relative overflow-hidden group">
@@ -720,7 +718,6 @@
                               </div>
                            </div>
                         ) : (
-                          // 年度/月份原有的 mapping 邏輯
                           (leaderboardView === 'year' ? dashboardData.leaderboard.yearly : dashboardData.leaderboard.monthly).map(item => (
                             <div key={item.period} className="bg-[#020617]/50 rounded-2xl p-5 border border-slate-800/50 relative overflow-hidden group">
                                <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none transition-all group-hover:bg-yellow-500/10"></div>
@@ -751,7 +748,6 @@
                             </div>
                           ))
                         )}
-                        {/* 無資料處理 */}
                         {leaderboardView !== 'halloffame' && (leaderboardView === 'year' ? dashboardData.leaderboard.yearly : dashboardData.leaderboard.monthly).length === 0 && (
                            <div className="flex items-center justify-center h-full min-h-[200px] text-slate-600 text-sm font-mono tracking-widest">
                               AWAITING_DATA_STREAM...
