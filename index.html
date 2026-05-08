@@ -157,7 +157,7 @@
       // UI 樣式常數
       const glassPanelClass = "bg-[#0f172a]/80 backdrop-blur-md border border-cyan-500/30 p-6 rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.1)] relative overflow-hidden";
       const inputClass = "w-full bg-[#040810] border border-cyan-500/40 text-cyan-100 placeholder-cyan-800 rounded-lg shadow-[inset_0_0_10px_rgba(6,182,212,0.1)] focus:ring-2 focus:ring-cyan-400 focus:border-cyan-400 focus:outline-none transition-all px-3 py-2 text-sm";
-      const labelClass = "block text-[10px] font-bold text-cyan-500 tracking-wider mb-1 uppercase opacity-80";
+      const labelClass = "block text-xs font-bold text-cyan-500 tracking-wider mb-1 uppercase opacity-80";
       const btnCyberClass = "bg-cyan-500/10 border border-cyan-400 text-cyan-300 hover:bg-cyan-400 hover:text-[#040810] px-4 py-2 rounded-lg font-black transition-all duration-300 shadow-[0_0_10px_rgba(6,182,212,0.2)] text-xs tracking-widest";
 
       const showMsg = (msg) => {
@@ -498,7 +498,7 @@
             <div className="min-h-screen bg-[#070b14] flex flex-col items-center justify-center text-cyan-500 space-y-4 font-mono font-bold tracking-widest">
                <Activity className="w-12 h-12 animate-pulse" />
                <p>INITIALIZING_SYSTEM...</p>
-               <p className="text-[10px] text-slate-500">Checking Cloud Synchronization</p>
+               <p className="text-xs text-slate-500">Checking Cloud Synchronization</p>
             </div>
          );
       }
@@ -521,7 +521,7 @@
                 </div>
                 <h1 className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-br from-cyan-200 to-blue-500 leading-tight">Volume of Documents</h1>
               </div>
-              <p className="text-cyan-800 font-mono text-[9px] tracking-[0.3em] uppercase pl-1">Operational Matrix v13.3</p>
+              <p className="text-cyan-800 font-mono text-[10px] tracking-[0.3em] uppercase pl-1">Operational Matrix v13.4</p>
             </div>
             
             <nav className="px-5 space-y-2.5 flex-1">
@@ -532,7 +532,7 @@
 
             <div className="p-6 mt-auto">
                <div className="bg-slate-900/40 border border-slate-800 rounded-2xl p-4 cursor-help group" title="資料變更時會自動上傳至雲端">
-                  <div className="flex justify-between items-center text-[9px] font-black text-slate-500 mb-2 uppercase">
+                  <div className="flex justify-between items-center text-xs font-black text-slate-500 mb-2 uppercase">
                     <span className="flex items-center gap-1"><RefreshCw className={`w-3 h-3 ${syncStatus === 'SAVING...' ? 'animate-spin' : ''}`} /> Sync Status</span>
                     <span className={syncColor}>
                       {syncStatus}
@@ -556,8 +556,8 @@
                         <h2 className="text-sm font-black text-cyan-100 uppercase tracking-widest">Geospatial Distribution</h2>
                      </div>
                      <div className="flex gap-1.5 bg-[#020617] p-1 rounded-xl border border-cyan-500/20">
-                       <button onClick={() => setFilterYear('All')} className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${filterYear === 'All' ? 'bg-cyan-500 text-[#020617] shadow-lg shadow-cyan-500/20' : 'text-slate-500 hover:text-cyan-400'}`}>ALL</button>
-                       {availableYears.map(y => <button key={y} onClick={() => setFilterYear(y)} className={`px-4 py-1.5 rounded-lg text-[10px] font-black transition-all ${filterYear === y ? 'bg-cyan-500 text-[#020617] shadow-lg shadow-cyan-500/20' : 'text-slate-500 hover:text-cyan-400'}`}>{y}</button>)}
+                       <button onClick={() => setFilterYear('All')} className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${filterYear === 'All' ? 'bg-cyan-500 text-[#020617] shadow-lg shadow-cyan-500/20' : 'text-slate-500 hover:text-cyan-400'}`}>ALL</button>
+                       {availableYears.map(y => <button key={y} onClick={() => setFilterYear(y)} className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${filterYear === y ? 'bg-cyan-500 text-[#020617] shadow-lg shadow-cyan-500/20' : 'text-slate-500 hover:text-cyan-400'}`}>{y}</button>)}
                      </div>
                   </div>
 
@@ -590,7 +590,7 @@
                           <select 
                             value={trendPersonName} 
                             onChange={(e) => setTrendPersonName(e.target.value)}
-                            className="bg-[#020617] border border-cyan-500/30 text-cyan-400 text-[10px] px-3 py-1.5 rounded-lg focus:outline-none cursor-pointer tracking-widest font-black uppercase"
+                            className="bg-[#020617] border border-cyan-500/30 text-cyan-400 text-xs px-3 py-1.5 rounded-lg focus:outline-none cursor-pointer tracking-widest font-black uppercase"
                           >
                             <option value="All">總趨勢 (ALL)</option>
                             {Array.from(new Set(people.map(p => p.name))).map(name => <option key={name} value={name}>{name}</option>)}
@@ -603,8 +603,8 @@
                         <AreaChart data={dashboardData.trendChartData}>
                           <defs><linearGradient id="colorCyan" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#22d3ee" stopOpacity={0.4}/><stop offset="95%" stopColor="#22d3ee" stopOpacity={0}/></linearGradient></defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false}/>
-                          <XAxis dataKey="name" tick={{fill: '#475569', fontSize: 10, fontWeight: 700}} axisLine={false} tickLine={false} dy={10}/>
-                          <YAxis tick={{fill: '#475569', fontSize: 10, fontWeight: 700}} axisLine={false} tickLine={false}/>
+                          <XAxis dataKey="name" tick={{fill: '#475569', fontSize: 12, fontWeight: 700}} axisLine={false} tickLine={false} dy={10}/>
+                          <YAxis tick={{fill: '#475569', fontSize: 12, fontWeight: 700}} axisLine={false} tickLine={false}/>
                           <Tooltip contentStyle={{backgroundColor: '#020617', border: '1px solid #1e293b', borderRadius: '12px', fontSize: '12px'}}/>
                           <Area type="monotone" dataKey="總件數" stroke="#06b6d4" strokeWidth={3} fill="url(#colorCyan)" animationDuration={1500}/>
                         </AreaChart>
@@ -628,7 +628,7 @@
                                   setGroupBy(type);
                                   if (type === 'year') setFilterYear('All'); 
                                 }} 
-                                className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all uppercase ${groupBy === type ? 'bg-purple-600/30 border border-purple-500 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'text-slate-500 hover:text-slate-300'}`}
+                                className={`px-4 py-1.5 rounded-md text-xs font-black tracking-widest transition-all uppercase ${groupBy === type ? 'bg-purple-600/30 border border-purple-500 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.3)]' : 'text-slate-500 hover:text-slate-300'}`}
                               >
                                 {type === 'person' ? '承辦' : type === 'district' ? '轄區' : type === 'group' ? '股別' : '年度'}
                               </button>
@@ -647,8 +647,8 @@
                               </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
-                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10, fontWeight: 700}} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10, fontWeight: 700}} dx={-10} />
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12, fontWeight: 700}} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12, fontWeight: 700}} dx={-10} />
                             <Tooltip 
                               cursor={{fill: 'rgba(30, 41, 59, 0.5)'}}
                               contentStyle={{ backgroundColor: '#020617', border: '1px solid #c084fc', borderRadius: '12px', fontSize: '12px' }}
@@ -666,9 +666,9 @@
                           Elite Ranking // 排行榜
                         </h3>
                         <div className="flex gap-1 bg-[#040810] p-1 rounded-lg border border-slate-700">
-                          <button onClick={() => setLeaderboardView('year')} className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${leaderboardView === 'year' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-500 hover:text-slate-300'}`}>年度</button>
-                          <button onClick={() => setLeaderboardView('month')} className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${leaderboardView === 'month' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-500 hover:text-slate-300'}`}>月份</button>
-                          <button onClick={() => setLeaderboardView('halloffame')} className={`px-4 py-1.5 rounded-md text-[10px] font-black tracking-widest transition-all ${leaderboardView === 'halloffame' ? 'bg-amber-500/20 text-amber-400' : 'text-slate-500 hover:text-slate-300'}`}>歷年最高</button>
+                          <button onClick={() => setLeaderboardView('year')} className={`px-4 py-1.5 rounded-md text-xs font-black tracking-widest transition-all ${leaderboardView === 'year' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-500 hover:text-slate-300'}`}>年度</button>
+                          <button onClick={() => setLeaderboardView('month')} className={`px-4 py-1.5 rounded-md text-xs font-black tracking-widest transition-all ${leaderboardView === 'month' ? 'bg-yellow-500/20 text-yellow-400' : 'text-slate-500 hover:text-slate-300'}`}>月份</button>
+                          <button onClick={() => setLeaderboardView('halloffame')} className={`px-4 py-1.5 rounded-md text-xs font-black tracking-widest transition-all ${leaderboardView === 'halloffame' ? 'bg-amber-500/20 text-amber-400' : 'text-slate-500 hover:text-slate-300'}`}>歷年最高</button>
                         </div>
                       </div>
                       
@@ -677,7 +677,7 @@
                            <div className="space-y-4">
                               <div className="bg-[#020617]/50 rounded-2xl p-5 border border-amber-500/30 relative overflow-hidden group">
                                  <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none transition-all group-hover:bg-amber-500/10"></div>
-                                 <div className="text-[10px] font-black text-amber-500 mb-4 tracking-widest border-b border-amber-500/30 pb-2 uppercase">
+                                 <div className="text-xs font-black text-amber-500 mb-4 tracking-widest border-b border-amber-500/30 pb-2 uppercase">
                                    [ 歷年單年度最高紀錄 ]
                                  </div>
                                  {dashboardData.allTimeRecords.maxYear.volume > 0 ? (
@@ -686,7 +686,7 @@
                                        <Trophy className="w-8 h-8 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
                                        <div>
                                          <div className="font-black text-cyan-50 text-base">{dashboardData.allTimeRecords.maxYear.person.name}</div>
-                                         <div className="text-[10px] text-amber-500/80 font-mono mt-0.5 uppercase tracking-widest">{dashboardData.allTimeRecords.maxYear.year} 年度</div>
+                                         <div className="text-xs text-amber-500/80 font-mono mt-0.5 uppercase tracking-widest">{dashboardData.allTimeRecords.maxYear.year} 年度</div>
                                        </div>
                                     </div>
                                     <div className="font-black tracking-tighter text-2xl text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]">
@@ -698,7 +698,7 @@
 
                               <div className="bg-[#020617]/50 rounded-2xl p-5 border border-emerald-500/30 relative overflow-hidden group">
                                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none transition-all group-hover:bg-emerald-500/10"></div>
-                                 <div className="text-[10px] font-black text-emerald-500 mb-4 tracking-widest border-b border-emerald-500/30 pb-2 uppercase">
+                                 <div className="text-xs font-black text-emerald-500 mb-4 tracking-widest border-b border-emerald-500/30 pb-2 uppercase">
                                    [ 歷年單月份最高紀錄 ]
                                  </div>
                                  {dashboardData.allTimeRecords.maxMonth.volume > 0 ? (
@@ -707,7 +707,7 @@
                                        <Trophy className="w-8 h-8 text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
                                        <div>
                                          <div className="font-black text-cyan-50 text-base">{dashboardData.allTimeRecords.maxMonth.person.name}</div>
-                                         <div className="text-[10px] text-emerald-500/80 font-mono mt-0.5 uppercase tracking-widest">{dashboardData.allTimeRecords.maxMonth.yearMonth.replace('-', '年')}月</div>
+                                         <div className="text-xs text-emerald-500/80 font-mono mt-0.5 uppercase tracking-widest">{dashboardData.allTimeRecords.maxMonth.yearMonth.replace('-', '年')}月</div>
                                        </div>
                                     </div>
                                     <div className="font-black tracking-tighter text-2xl text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.6)]">
@@ -721,7 +721,7 @@
                           (leaderboardView === 'year' ? dashboardData.leaderboard.yearly : dashboardData.leaderboard.monthly).map(item => (
                             <div key={item.period} className="bg-[#020617]/50 rounded-2xl p-5 border border-slate-800/50 relative overflow-hidden group">
                                <div className="absolute top-0 right-0 w-32 h-32 bg-yellow-500/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none transition-all group-hover:bg-yellow-500/10"></div>
-                               <div className="text-[10px] font-black text-slate-500 mb-4 tracking-widest border-b border-slate-800/50 pb-2 uppercase">
+                               <div className="text-xs font-black text-slate-500 mb-4 tracking-widest border-b border-slate-800/50 pb-2 uppercase">
                                  {leaderboardView === 'year' ? `[ ${item.period} 年度菁英 ]` : `[ ${item.period.replace('-', ' 年 ')} 月份榜單 ]`}
                                </div>
                                <div className="space-y-3 relative z-10">
@@ -734,11 +734,11 @@
                                            <div className={`text-xl font-black italic w-6 text-center ${colors[idx]}`}>#{idx+1}</div>
                                            <div>
                                              <div className="font-black text-cyan-50 text-sm tracking-wide">{rank.person.name}</div>
-                                             <div className="text-[9px] text-slate-500 font-mono mt-0.5 uppercase tracking-widest">[{rank.person.group}]</div>
+                                             <div className="text-[10px] text-slate-500 font-mono mt-0.5 uppercase tracking-widest">[{rank.person.group}]</div>
                                            </div>
                                          </div>
                                          <div className={`font-black tracking-tighter text-xl ${colors[idx]}`}>
-                                           {rank.vol.toLocaleString()} <span className="text-[10px] opacity-70 font-mono tracking-normal ml-0.5">件</span>
+                                           {rank.vol.toLocaleString()} <span className="text-xs opacity-70 font-mono tracking-normal ml-0.5">件</span>
                                          </div>
                                       </div>
                                     )
@@ -786,8 +786,8 @@
                        <p className="text-slate-500 text-xs mb-10 leading-relaxed px-4">系統已升級為「雲端優先」模式。當您新增或編輯資料時，系統會在 1.5 秒內自動將進度推送至 Firebase 雲端，無需再手動點擊上傳。</p>
                        <div className="grid grid-cols-1 gap-4 mt-auto">
                          <div className="flex flex-col items-center justify-center p-4 bg-black/30 rounded-2xl border border-slate-800">
-                           <span className="text-[10px] text-slate-500 font-mono tracking-widest mb-2">CURRENT SYNC STATUS</span>
-                           <span className={`font-black tracking-widest ${syncColor}`}>{syncStatus}</span>
+                           <span className="text-xs text-slate-500 font-mono tracking-widest mb-2">CURRENT SYNC STATUS</span>
+                           <span className={`font-black tracking-widest text-sm ${syncColor}`}>{syncStatus}</span>
                          </div>
                        </div>
                     </div>
@@ -887,7 +887,7 @@
       return (
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className={glassPanelClass}>
-            <h2 className="text-[10px] font-black text-cyan-300 tracking-[0.3em] uppercase mb-8">{editingNodeId ? 'Edit Network Node' : 'Initialize New Node'}</h2>
+            <h2 className="text-xs font-black text-cyan-300 tracking-[0.3em] uppercase mb-8">{editingNodeId ? 'Edit Network Node' : 'Initialize New Node'}</h2>
             <form onSubmit={handleUpsertPerson} className="grid grid-cols-1 md:grid-cols-5 gap-6 items-end relative z-10">
               <div><label className={editingNodeId ? labelClass.replace('cyan', 'emerald') : labelClass}>識別碼 (姓名)</label><input type="text" value={newPerson.name} onChange={e => setNewPerson({...newPerson, name: e.target.value})} className={editingNodeId ? inputClass.replace(/cyan/g, 'emerald') : inputClass} placeholder="ID_IDENTIFIER"/></div>
               <div><label className={editingNodeId ? labelClass.replace('cyan', 'emerald') : labelClass}>隸屬群集 (股別)</label><select value={newPerson.group} onChange={e => setNewPerson({...newPerson, group: e.target.value})} className={editingNodeId ? inputClass.replace(/cyan/g, 'emerald') : inputClass}>{GROUP_OPTIONS.map(g => <option key={g} value={g} className="bg-[#0f172a]">{g}</option>)}</select></div>
@@ -912,10 +912,10 @@
           </div>
           <div className="bg-[#0f172a]/60 border border-slate-700/50 rounded-3xl overflow-hidden shadow-2xl">
              <div className="flex overflow-x-auto bg-[#040810]/80 border-b border-cyan-500/20 custom-scrollbar p-1">
-               {GROUP_OPTIONS.map(g => <button key={g} onClick={() => { setActiveGroupTab(g); setEditingLeaderGroup(null); }} className={`px-8 py-5 text-[10px] font-black tracking-widest transition-all border-b-4 whitespace-nowrap uppercase ${activeGroupTab === g ? 'border-cyan-400 text-cyan-300 bg-cyan-500/5' : 'border-transparent text-slate-500'}`}>{g}</button>)}
+               {GROUP_OPTIONS.map(g => <button key={g} onClick={() => { setActiveGroupTab(g); setEditingLeaderGroup(null); }} className={`px-8 py-5 text-xs font-black tracking-widest transition-all border-b-4 whitespace-nowrap uppercase ${activeGroupTab === g ? 'border-cyan-400 text-cyan-300 bg-cyan-500/5' : 'border-transparent text-slate-500'}`}>{g}</button>)}
              </div>
              <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
-               <span className="text-[10px] text-slate-500 font-black tracking-[0.2em] uppercase">Sector Chief: <span className="text-cyan-100 text-xl ml-3 font-black">{groupLeaders[activeGroupTab] || 'UNDEFINED'}</span></span>
+               <span className="text-xs text-slate-500 font-black tracking-[0.2em] uppercase">Sector Chief: <span className="text-cyan-100 text-xl ml-3 font-black">{groupLeaders[activeGroupTab] || 'UNDEFINED'}</span></span>
                <button onClick={() => { setTempLeaderName(groupLeaders[activeGroupTab] || ''); setEditingLeaderGroup(activeGroupTab); }} className="p-2.5 bg-slate-800 rounded-xl text-slate-400 hover:text-cyan-400 shadow-lg"><Edit2 className="w-4 h-4"/></button>
              </div>
              {editingLeaderGroup && (
@@ -925,12 +925,12 @@
                </div>
              )}
              <table className="min-w-full divide-y divide-slate-800/50">
-               <thead className="bg-[#0a101f]/80"><tr><th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase">Status</th><th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase">Node Identifier</th><th className="px-8 py-4 text-right text-[10px] font-black text-slate-400 uppercase">Protocol</th></tr></thead>
+               <thead className="bg-[#0a101f]/80"><tr><th className="px-8 py-4 text-left text-xs font-black text-slate-400 uppercase">Status</th><th className="px-8 py-4 text-left text-xs font-black text-slate-400 uppercase">Node Identifier</th><th className="px-8 py-4 text-right text-xs font-black text-slate-400 uppercase">Protocol</th></tr></thead>
                <tbody className="divide-y divide-slate-800/50">
                  {currentList.map(p => (
                    <tr key={p.id} className={`${p.isActive ? 'hover:bg-cyan-500/5' : 'opacity-40'} transition-all`}>
-                     <td className="px-8 py-5 whitespace-nowrap text-[9px] font-black">{p.isActive ? 'ACTIVE' : 'OFFLINE'}</td>
-                     <td className="px-8 py-5 whitespace-nowrap text-sm font-black text-cyan-50">{p.name} <span className="text-[10px] text-slate-500 ml-2 font-mono uppercase">[{p.district}]</span></td>
+                     <td className="px-8 py-5 whitespace-nowrap text-[10px] sm:text-xs font-black">{p.isActive ? 'ACTIVE' : 'OFFLINE'}</td>
+                     <td className="px-8 py-5 whitespace-nowrap text-sm font-black text-cyan-50">{p.name} <span className="text-xs text-slate-500 ml-2 font-mono uppercase">[{p.district}]</span></td>
                      <td className="px-8 py-5 text-right flex justify-end gap-2.5">
                        <button onClick={() => setEditingPersonId(p.id)} title="管理數據" className="p-2.5 bg-purple-500/10 rounded-xl text-purple-400 hover:bg-purple-500 hover:text-white transition-all"><FileSpreadsheet className="w-4 h-4"/></button>
                        <button onClick={() => handleEditNode(p)} title="編輯節點" className="p-2.5 bg-emerald-500/10 rounded-xl text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all"><Edit2 className="w-4 h-4"/></button>
@@ -976,7 +976,7 @@
           <div className="absolute inset-0 bg-[#020617]/90 backdrop-blur-md" onClick={onClose}></div>
           <div className="relative w-full max-w-2xl bg-[#0f172a] border border-cyan-500/40 rounded-[2.5rem] overflow-hidden flex flex-col max-h-[85vh] shadow-2xl">
             <div className="p-10 border-b border-cyan-500/20 flex justify-between items-start bg-[#040810]/60">
-              <div><h2 className="text-3xl font-black text-cyan-100 uppercase">{person.name}</h2><p className="text-[10px] text-cyan-600 font-mono tracking-[0.4em] uppercase mt-2">Sector_{person.district}</p></div>
+              <div><h2 className="text-3xl font-black text-cyan-100 uppercase">{person.name}</h2><p className="text-xs text-cyan-600 font-mono tracking-[0.4em] uppercase mt-2">Sector_{person.district}</p></div>
               <button onClick={onClose} className="p-3 bg-slate-800 rounded-2xl text-slate-400 hover:text-white transition-all"><X className="w-6 h-6"/></button>
             </div>
             <div className="p-10 overflow-y-auto space-y-8 custom-scrollbar">
@@ -987,7 +987,7 @@
                 <button type="submit" className={`${btnCyberClass} !py-3 uppercase`}>Commit</button>
               </form>
               <table className="min-w-full text-sm">
-                <thead className="bg-[#0a101f]/80 text-slate-500 uppercase tracking-widest text-[9px] font-black"><tr><th className="text-left px-6 py-4">Time</th><th className="text-right px-6 py-4">Vol</th><th className="text-right px-6 py-4">Action</th></tr></thead>
+                <thead className="bg-[#0a101f]/80 text-slate-500 uppercase tracking-widest text-xs font-black"><tr><th className="text-left px-6 py-4">Time</th><th className="text-right px-6 py-4">Vol</th><th className="text-right px-6 py-4">Action</th></tr></thead>
                 <tbody className="divide-y divide-slate-800/40">
                   {pRecs.map(r => (
                     <tr key={r.id} className="hover:bg-cyan-500/5">
